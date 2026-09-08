@@ -19,7 +19,15 @@
     statusTitle: $('statusTitle'), statusState: $('statusState'),
     clock: $('clock'), themeBtn: $('themeBtn'), themeGlyph: $('themeGlyph'),
     toasts: $('toasts'),
+    heroGreet: $('heroGreet'), heroClock: $('heroClock'), heroDate: $('heroDate'),
+    heroTime: $('heroTime'), heroMeridiem: $('heroMeridiem'),
+    statApps: $('statApps'), statRunning: $('statRunning'), statVehicle: $('statVehicle'),
   };
+
+  /* The single source of truth for vehicle telemetry. Nothing is wired to a
+   * real vehicle yet, so this says so rather than reporting a plausible zero:
+   * a speed on a driver's screen has to be a measurement or an admission. */
+  const vehicle = { speed: null, unit: 'mph', gear: null, parked: true, source: 'unavailable' };
 
   /** id -> { app, frame, connected } for every app that has been opened. */
   const opened = new Map();
@@ -39,8 +47,19 @@
   el.themeBtn.addEventListener('click', () => applyTheme(theme === 'night' ? 'day' : 'night'));
 
   /* ── Clock ──────────────────────────────────────────────── */
+  const greetingFor = (hour) => hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   const tick = () => {
-    el.clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    el.clock.textContent = time;
+    // A 24-hour locale yields no meridiem; the span then collapses via :empty.
+    const [digits, meridiem = ''] = time.split(' ');
+    el.heroTime.textContent = digits;
+    el.heroMeridiem.textContent = meridiem;
+    el.heroClock.dateTime = now.toISOString();
+    el.heroDate.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    el.heroGreet.textContent = greetingFor(now.getHours());
   };
   tick();
   setInterval(tick, 10_000);
@@ -91,14 +110,36 @@
     el.sub.textContent = apps.length === 1 ? '1 app installed' : `${apps.length} apps installed`;
 
     for (const app of apps) {
-      const tile = document.createElement('button');
+      const running = opened.has(app.id) || app.state === 'ready';
+
+      const tile = document.createElement('div');
       tile.className = 'tile';
-      tile.innerHTML = `
+      tile.dataset.state = app.state;
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'tile-open';
+      openBtn.innerHTML = `
         <span class="tile-icon">${escape(app.icon)}</span>
         <span class="tile-name">${escape(app.name)}</span>
         <span class="tile-desc">${escape(app.description)}</span>
         <span class="tile-foot"><span class="dot" data-state="${escape(app.state)}"></span>${escape(labelFor(app))}</span>`;
-      tile.addEventListener('click', () => open(app.id));
+      openBtn.addEventListener('click', () => open(app.id));
+      tile.append(openBtn);
+
+      // Only a running app gets a stop control, so the launcher never offers an
+      // action that would do nothing.
+      if (running) {
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'tile-stop';
+        stopBtn.title = `Stop ${app.name}`;
+        stopBtn.setAttribute('aria-label', `Stop ${app.name}`);
+        stopBtn.textContent = '\u00d7';
+        stopBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          stopApp(app.id);
+        });
+        tile.append(stopBtn);
+      }
       el.grid.append(tile);
 
       const item = document.createElement('button');
@@ -112,6 +153,25 @@
 
     el.errors.hidden = errors.length === 0;
     el.errors.textContent = errors.join('\n');
+
+    const running = apps.filter((a) => opened.has(a.id) || a.state === 'ready').length;
+    el.statApps.textContent = String(apps.length);
+    el.statRunning.textContent = String(running);
+    el.statVehicle.textContent = vehicle.source === 'unavailable'
+      ? 'no signal'
+      : `${vehicle.speed ?? '--'} ${vehicle.unit}`;
+  }
+
+  /** Stop an app and drop its frame, so reopening it is a clean boot. */
+  async function stopApp(id) {
+    const entry = opened.get(id);
+    entry?.frame.remove();
+    opened.delete(id);
+    if (currentId === id) currentId = null;
+    try {
+      await fetch(`/api/apps/${encodeURIComponent(id)}/stop`, { method: 'POST' });
+    } catch { /* the app is gone from the UI either way */ }
+    await refresh();
   }
 
   const labelFor = (app) => ({
@@ -234,9 +294,7 @@
         send(entry.frame, 'welcome', {
           app: { id: entry.app.id, name: entry.app.name },
           theme,
-          // No vehicle interface is wired up yet. Say so plainly rather than
-          // handing a page a plausible number it might put on screen.
-          vehicle: { speed: null, unit: 'mph', gear: null, parked: true, source: 'unavailable' },
+          vehicle,
         });
         break;
       case 'setTitle':

@@ -40,15 +40,37 @@
   <main class="stage" id="stage">
 
     <section class="launcher" id="launcher">
-      <div class="launcher-head">
-        <h1>Head Unit</h1>
-        <p id="launcherSub">Installed apps</p>
+
+      <!-- The glance half. A head unit home screen is looked at far more often
+           than it is used, so the thing it shows at rest has to be worth the
+           space: time first, at a size readable from the driver's seat. -->
+      <div class="hero">
+        <div class="hero-now">
+          <p class="hero-greet" id="heroGreet">Hello</p>
+          <time class="hero-clock" id="heroClock">
+            <span class="hero-time" id="heroTime">--:--</span><span class="hero-meridiem" id="heroMeridiem"></span>
+          </time>
+          <p class="hero-date" id="heroDate">&nbsp;</p>
+        </div>
+        <dl class="hero-stats">
+          <div><dt>Installed</dt><dd id="statApps">&mdash;</dd></div>
+          <div><dt>Running</dt><dd id="statRunning">&mdash;</dd></div>
+          <div><dt>Vehicle</dt><dd id="statVehicle">no signal</dd></div>
+        </dl>
       </div>
-      <div class="grid" id="appGrid"></div>
-      <p class="launcher-empty" id="launcherEmpty" hidden>
-        No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.
-      </p>
-      <div class="registry-errors" id="registryErrors" hidden></div>
+
+      <div class="apps">
+        <div class="apps-head">
+          <h2>Apps</h2>
+          <span id="launcherSub"></span>
+        </div>
+        <div class="grid" id="appGrid"></div>
+        <p class="launcher-empty" id="launcherEmpty" hidden>
+          No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.
+        </p>
+        <div class="registry-errors" id="registryErrors" hidden></div>
+      </div>
+
     </section>
 
     <!-- One frame per opened app, kept alive in the background so returning to
