@@ -11,6 +11,15 @@
 
 <div id="shell" class="shell" data-view="launcher">
 
+  <div class="ambient" aria-hidden="true">
+    <span class="orb orb-a"></span>
+    <span class="orb orb-b"></span>
+    <span class="orb orb-c"></span>
+    <span class="horizon"></span>
+    <span class="vignette"></span>
+  </div>
+
+
   <!-- Chrome the shell owns. An app never draws these, so they stay correct
        even while an app is booting, wedged, or repainting. -->
   <header class="statusbar">
@@ -48,8 +57,13 @@
         <div class="hero-now">
           <p class="hero-greet" id="heroGreet">Hello</p>
           <time class="hero-clock" id="heroClock">
-            <span class="hero-time" id="heroTime">--:--</span><span class="hero-meridiem" id="heroMeridiem"></span>
+            <span class="hero-time" id="heroTime">--:--</span>
+            <span class="hero-tail">
+              <span class="hero-meridiem" id="heroMeridiem"></span>
+              <span class="hero-seconds" id="heroSeconds">00</span>
+            </span>
           </time>
+          <div class="hero-rail" aria-hidden="true"><span class="hero-rail-fill" id="heroRail"></span></div>
           <p class="hero-date" id="heroDate">&nbsp;</p>
         </div>
         <dl class="hero-stats">

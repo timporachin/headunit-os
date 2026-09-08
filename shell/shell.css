@@ -1,12 +1,72 @@
 /*
  * Shell chrome.
  *
- * The layout is a fixed frame: a status bar across the top, a nav rail down
- * the left, and one stage that fills whatever is left. Nothing scrolls at this
- * level — a page that needs to scroll does it inside its own frame — because a
- * shell that can be nudged off-position by a bump is a shell you cannot aim at.
+ * The layout is a fixed frame: status bar across the top, nav rail down the
+ * left, one stage filling the rest. Nothing scrolls at this level — a page that
+ * needs to scroll does it inside its own frame — because a shell that can be
+ * nudged off-position by a bump is a shell you cannot aim at.
+ *
+ * Visually it is one idea: a lit atmosphere, with translucent instrument panels
+ * floating on top of it. The panels are only convincing if there is something
+ * behind them worth refracting, which is what the ambient layer is for. Every
+ * animation here moves transform or opacity only, so none of it touches layout
+ * while a globe is rendering next door.
  */
 
+/* ── Ambient field ──────────────────────────────────────────── */
+.ambient {
+  position: fixed; inset: 0; z-index: 0;
+  overflow: hidden; pointer-events: none;
+  background: var(--bg);
+}
+.orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.orb-a {
+  width: 54vw; height: 54vw; left: -14vw; top: -20vw;
+  background: var(--orb-1); animation: drift-a 38s var(--ease) infinite alternate;
+}
+.orb-b {
+  width: 48vw; height: 48vw; right: -12vw; top: 4vw;
+  background: var(--orb-2); animation: drift-b 47s var(--ease) infinite alternate;
+}
+.orb-c {
+  width: 44vw; height: 44vw; left: 24vw; bottom: -22vw;
+  background: var(--orb-3); animation: drift-c 56s var(--ease) infinite alternate;
+}
+@keyframes drift-a { to { transform: translate3d(9vw, 6vh, 0) scale(1.14); } }
+@keyframes drift-b { to { transform: translate3d(-11vw, 9vh, 0) scale(0.88); } }
+@keyframes drift-c { to { transform: translate3d(7vw, -8vh, 0) scale(1.2); } }
+
+/* A ground plane receding to a horizon. Reads as a vehicle instrument rather
+   than a desktop wallpaper, and it anchors the bottom of the screen. */
+.horizon {
+  position: absolute; left: -30%; right: -30%; bottom: 0; height: 48%;
+  background:
+    repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 94px),
+    repeating-linear-gradient(to top,   var(--grid-line) 0 1px, transparent 1px 66px);
+  transform: perspective(540px) rotateX(74deg);
+  transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 82%);
+  mask-image: linear-gradient(to top, #000 0%, transparent 82%);
+}
+/* An app's frame is opaque, so while one is in the foreground this whole layer
+   is invisible — and three 90px-blurred animating orbs are not free. Hiding it
+   drops them from compositing entirely, which matters when the thing on top is
+   rendering a photorealistic globe. */
+.shell[data-view="app"] .ambient { visibility: hidden; }
+
+.vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(122% 92% at 50% 38%, transparent 38%, rgba(0, 0, 0, 0.62) 100%);
+}
+:root[data-theme="day"] .vignette {
+  background: radial-gradient(122% 92% at 50% 38%, transparent 40%, rgba(90, 112, 145, 0.26) 100%);
+}
+
+/* ── Frame ──────────────────────────────────────────────────── */
 .shell {
   display: grid;
   grid-template-columns: var(--rail-width) 1fr;
@@ -20,14 +80,13 @@
 
 /* ── Status bar ─────────────────────────────────────────────── */
 .statusbar {
-  grid-area: status;
-  display: flex;
-  align-items: center;
-  gap: var(--gap-3);
+  grid-area: status; position: relative; z-index: 3;
+  display: flex; align-items: center; gap: var(--gap-3);
   padding: 0 var(--gap-4);
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--line);
-  z-index: 3;
+  background: color-mix(in srgb, var(--bg-sunken) 62%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--glass-edge);
 }
 .status-home {
   min-height: var(--touch-min); height: var(--touch-min); width: 52px;
@@ -35,122 +94,177 @@
   background: transparent; border-color: transparent;
   font-size: var(--text-lg); color: var(--ink-dim);
 }
-.status-home:hover { color: var(--ink); background: var(--surface-hover); }
+.status-home:hover { color: var(--accent); background: var(--surface-hover); }
 .status-title { flex: 1; display: flex; align-items: baseline; gap: var(--gap-3); min-width: 0; }
 #statusTitle {
   font-size: var(--text-lg); font-weight: 600; letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.status-state { font-size: var(--text-xs); color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.09em; }
+.status-state {
+  font-size: var(--text-xs); color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
 .status-right { display: flex; align-items: center; gap: var(--gap-3); }
 .status-chip {
   min-height: var(--touch-min); height: var(--touch-min); width: var(--touch-min); padding: 0;
   display: grid; place-items: center;
-  background: transparent; border-color: var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent; border-color: var(--glass-edge);
   color: var(--ink-dim); font-size: var(--text);
 }
-.status-chip:hover { color: var(--accent); border-color: var(--accent); }
+.status-chip:hover {
+  color: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 22px -6px var(--bloom);
+}
 .status-clock {
   font-family: var(--font-mono); font-size: var(--text-lg);
-  font-variant-numeric: tabular-nums; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink);
 }
 
 /* ── Nav rail ───────────────────────────────────────────────── */
 .rail {
-  grid-area: rail;
-  background: var(--bg-sunken);
-  border-right: 1px solid var(--line);
+  grid-area: rail; position: relative; z-index: 2;
+  background: color-mix(in srgb, var(--bg-sunken) 52%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-right: 1px solid var(--glass-edge);
   overflow: hidden auto;
   transition: transform var(--speed) var(--ease);
-  z-index: 2;
 }
-.rail-apps { display: flex; flex-direction: column; gap: var(--gap-1); padding: var(--gap-3) var(--gap-2); }
+.rail-apps { display: flex; flex-direction: column; gap: var(--gap-2); padding: var(--gap-3) var(--gap-2); }
 .rail-item {
   width: 100%; min-height: var(--touch-lg);
-  display: grid; grid-template-rows: auto auto; gap: 2px; place-items: center;
+  display: grid; grid-template-rows: auto auto; gap: 3px; place-items: center;
   padding: var(--gap-2) 2px;
   background: transparent; border-color: transparent; border-radius: var(--radius);
   color: var(--ink-dim);
 }
 .rail-item:hover { background: var(--surface); color: var(--ink); }
-.rail-item[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
-.rail-item .glyph { font-size: 26px; line-height: 1; }
+.rail-item[aria-current="true"] {
+  background: var(--accent-soft); color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.rail-item .glyph { font-size: 26px; line-height: 1; position: relative; }
 .rail-item .label {
-  font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* A dot marks an app that is running in the background. */
-.rail-item[data-running="true"] .glyph { position: relative; }
 .rail-item[data-running="true"] .glyph::after {
-  content: ""; position: absolute; right: -6px; top: 2px;
-  width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+  content: ""; position: absolute; right: -7px; top: 1px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok); box-shadow: 0 0 10px var(--ok);
 }
 
 .rail-tab {
   position: fixed; left: 0; top: 50%; transform: translateY(-50%);
   width: 26px; min-height: 84px; padding: 0;
   border-radius: 0 var(--radius) var(--radius) 0;
-  background: var(--surface); border-color: var(--line);
-  color: var(--ink-dim); z-index: 4;
+  background: var(--glass); backdrop-filter: blur(14px);
+  border-color: var(--glass-edge); color: var(--ink-dim); z-index: 4;
 }
 
 /* ── Stage ──────────────────────────────────────────────────── */
-.stage { grid-area: stage; position: relative; overflow: hidden; background: var(--bg); }
+.stage { grid-area: stage; position: relative; z-index: 1; overflow: hidden; }
 .stage > section { position: absolute; inset: 0; }
 
 /* ── Launcher ───────────────────────────────────────────────── */
-/*
- * Two halves. The left is the glance — time, date, a little status — because a
- * home screen is looked at far more often than it is touched. The right is the
- * grid. Together they fill the stage, which is the point: dead space on a fixed
- * screen reads as something failing to load.
- */
 .launcher {
   display: grid;
-  grid-template-columns: minmax(300px, 30%) 1fr;
+  grid-template-columns: minmax(320px, 31%) 1fr;
   gap: var(--gap-6);
   padding: var(--gap-6);
   overflow: hidden;
 }
 
+/* The glass instrument panel. */
 .hero {
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column;
-  padding: var(--gap-5);
-  background: linear-gradient(160deg, var(--surface), var(--bg-raised));
-  border: 1px solid var(--line);
+  padding: var(--gap-6);
   border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: var(--shadow);
+  animation: panelIn 640ms var(--ease) backwards;
 }
-.hero-greet {
-  margin: 0; font-size: var(--text-sm); color: var(--ink-dim);
-  text-transform: uppercase; letter-spacing: 0.12em;
+/* A hairline that catches light along one edge, drawn as a masked gradient so
+   it can fade around the corner instead of ringing the whole box evenly. */
+.hero::before, .tile-open::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1px; pointer-events: none;
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--accent) 55%, transparent), var(--glass-edge) 38%,
+    transparent 62%, var(--glass-edge) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
-/* Centred in whatever room is left above the stats, so the panel does not read
-   as a clock stranded at the top of an empty box. */
-.hero-now { margin: auto 0; }
-.hero-clock {
-  display: flex; align-items: baseline; gap: var(--gap-2);
-  margin: var(--gap-2) 0 0;
-  font-family: var(--font-mono); font-weight: 600; line-height: 1;
-  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink);
+.hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.10), transparent 46%);
 }
-/* The digits size to the panel; the meridiem stays small so a 12-hour clock
-   cannot wrap onto a second line. */
-.hero-time { font-size: clamp(48px, 5.4vw, 76px); }
-.hero-meridiem { font-size: var(--text-lg); color: var(--ink-dim); letter-spacing: 0.04em; }
-.hero-meridiem:empty { display: none; }
-.hero-date { margin: var(--gap-3) 0 0; color: var(--ink-dim); font-size: var(--text-lg); }
 
-.hero-stats { margin: 0; padding: 0; display: grid; gap: var(--gap-3); }
+.hero-now { margin: auto 0; position: relative; }
+.hero-greet {
+  margin: 0; font-size: var(--text-xs); color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.22em;
+}
+.hero-clock {
+  display: flex; align-items: flex-start; gap: var(--gap-3);
+  margin: var(--gap-3) 0 0;
+  font-family: var(--font-mono); font-weight: 600; line-height: 0.92;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+}
+.hero-time {
+  font-size: clamp(52px, 5.6vw, 84px);
+  background: linear-gradient(176deg, var(--ink) 30%, color-mix(in srgb, var(--accent) 70%, var(--ink)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 28px var(--bloom));
+}
+.hero-tail { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
+.hero-meridiem {
+  font-size: var(--text-sm); color: var(--ink-dim);
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.hero-meridiem:empty { display: none; }
+.hero-seconds {
+  font-size: var(--text-sm); color: var(--accent);
+  letter-spacing: 0.14em; opacity: 0.85;
+}
+
+/* Progress through the hour. A small live thing on an otherwise static panel
+   is what stops the screen reading as a photograph of a screen. */
+.hero-rail {
+  margin: var(--gap-5) 0 0; height: 3px; border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  overflow: hidden;
+}
+.hero-rail-fill {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, transparent, var(--accent));
+  box-shadow: 0 0 14px var(--bloom);
+  transition: width 1s linear;
+}
+.hero-date {
+  margin: var(--gap-4) 0 0; color: var(--ink-dim);
+  font-size: var(--text-lg); letter-spacing: 0.01em;
+}
+
+.hero-stats { margin: 0; padding: 0; display: grid; gap: var(--gap-3); position: relative; }
 .hero-stats > div {
   display: flex; justify-content: space-between; align-items: baseline; gap: var(--gap-3);
-  padding-top: var(--gap-3); border-top: 1px solid var(--line);
+  padding-top: var(--gap-3);
+  border-top: 1px solid color-mix(in srgb, var(--glass-edge) 60%, transparent);
 }
 .hero-stats dt {
   font-size: var(--text-xs); color: var(--ink-faint);
-  text-transform: uppercase; letter-spacing: 0.1em;
+  text-transform: uppercase; letter-spacing: 0.14em;
 }
 .hero-stats dd {
-  margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink);
+  margin: 0; font-family: var(--font-mono); font-size: var(--text-sm);
+  color: var(--ink); font-variant-numeric: tabular-nums;
 }
 
 .apps { display: flex; flex-direction: column; min-height: 0; }
@@ -158,39 +272,67 @@
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--gap-3); margin-bottom: var(--gap-4);
 }
-.apps-head h2 { margin: 0; font-size: var(--text-xl); font-weight: 700; }
-.apps-head span { font-size: var(--text-sm); color: var(--ink-dim); }
+.apps-head h2 {
+  margin: 0; font-size: var(--text-xl); font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.apps-head span { font-size: var(--text-sm); color: var(--ink-dim); font-family: var(--font-mono); }
 
 .grid {
   display: grid;
   /* auto-fit rather than auto-fill: with two apps installed the tiles grow to
      fill the row instead of leaving a trail of empty tracks. */
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  grid-auto-rows: minmax(210px, auto);
+  grid-auto-rows: minmax(216px, auto);
   gap: var(--gap-4);
   align-content: start;
   overflow-y: auto;
-  padding-right: var(--gap-1);
+  padding: 2px var(--gap-1) var(--gap-4) 2px;
 }
 
 /* The tile is a container, not the button, so a running app can carry its own
    stop control without nesting one button inside another. */
-.tile { position: relative; }
+.tile {
+  position: relative;
+  animation: panelIn 560ms var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 65ms + 90ms);
+}
 .tile-open {
+  position: relative; overflow: hidden;
   width: 100%; height: 100%;
-  display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-2);
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-3);
   padding: var(--gap-5);
   text-align: left;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
-  transition: transform var(--speed) var(--ease), border-color var(--speed) var(--ease),
-              background var(--speed) var(--ease);
+  border: 0; border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  transition: transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
 }
-.tile-open:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-2px); }
-.tile[data-state="ready"] .tile-open { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
-.tile[data-state="failed"] .tile-open { border-color: color-mix(in srgb, var(--alert) 55%, var(--line)); }
+/* A light sweep that only exists on hover — the tile looks lit from a moving
+   source rather than merely tinted. */
+.tile-open::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.10) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 620ms var(--ease);
+}
+.tile-open:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45), 0 0 46px -10px var(--bloom);
+}
+.tile-open:hover::after { transform: translateX(120%); }
 
-.tile-icon { font-size: 44px; line-height: 1; }
-.tile-name { font-size: var(--text-lg); font-weight: 600; }
+.tile-icon {
+  width: 68px; height: 68px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 20px; font-size: 32px; line-height: 1;
+  background:
+    radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bg-sunken) 70%, transparent);
+  border: 1px solid var(--glass-edge);
+}
+.tile-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: 0.01em; }
 .tile-desc {
   font-size: var(--text-sm); color: var(--ink-dim); line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -198,22 +340,27 @@
 .tile-foot {
   margin-top: auto; display: flex; align-items: center; gap: var(--gap-2);
   font-size: var(--text-xs); color: var(--ink-faint);
-  text-transform: uppercase; letter-spacing: 0.08em;
+  text-transform: uppercase; letter-spacing: 0.14em;
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex: none; }
-.dot[data-state="ready"]    { background: var(--ok); }
-.dot[data-state="starting"] { background: var(--warn); }
-.dot[data-state="failed"]   { background: var(--alert); }
+.dot[data-state="ready"]    { background: var(--ok);    box-shadow: 0 0 10px var(--ok);    animation: breathe 2.6s ease-in-out infinite; }
+.dot[data-state="starting"] { background: var(--warn);  box-shadow: 0 0 10px var(--warn);  animation: breathe 1.1s ease-in-out infinite; }
+.dot[data-state="failed"]   { background: var(--alert); box-shadow: 0 0 10px var(--alert); }
+
+.tile[data-state="ready"]  .tile-open { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 40%, transparent); }
+.tile[data-state="failed"] .tile-open { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--alert) 50%, transparent); }
 
 .tile-stop {
-  position: absolute; top: var(--gap-3); right: var(--gap-3);
+  position: absolute; top: var(--gap-3); right: var(--gap-3); z-index: 2;
   min-height: var(--touch-min); width: var(--touch-min); padding: 0;
   display: grid; place-items: center;
   border-radius: var(--radius-pill);
-  background: var(--bg-sunken); border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--bg-sunken) 80%, transparent);
+  backdrop-filter: blur(10px);
+  border-color: var(--glass-edge);
   color: var(--ink-dim); font-size: var(--text-lg); line-height: 1;
 }
-.tile-stop:hover { color: var(--alert); border-color: var(--alert); }
+.tile-stop:hover { color: var(--alert); border-color: var(--alert); box-shadow: 0 0 24px -6px var(--alert); }
 
 .launcher-empty { color: var(--ink-dim); font-size: var(--text-sm); }
 .launcher-empty code { font-family: var(--font-mono); color: var(--accent); }
@@ -224,32 +371,25 @@
   font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap;
 }
 
-/* Below this the two halves stop fitting side by side; stack them and let the
-   hero shrink to a banner rather than squeezing the grid to one column. */
-@media (max-width: 1024px) {
-  .launcher { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
-  .hero-clock { font-size: 56px; }
-  .hero-stats { margin-top: var(--gap-4); grid-template-columns: repeat(3, 1fr); }
-  .hero-stats > div { flex-direction: column; align-items: flex-start; gap: 2px; }
-}
-
 /* ── App frames ─────────────────────────────────────────────── */
+/* Opaque on purpose: an app must not have the ambient field bleeding through
+   whatever it is drawing. */
 .frames { background: var(--bg); }
 .frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
-.frames iframe[hidden] { display: none; }
 
 /* ── Boot and failure ───────────────────────────────────────── */
 .boot, .failure { display: grid; place-items: center; padding: var(--gap-6); }
 .boot-inner { text-align: center; }
-.boot-inner h2 { margin: var(--gap-4) 0 var(--gap-1); font-size: var(--text-xl); }
+.boot-inner h2 { margin: var(--gap-5) 0 var(--gap-1); font-size: var(--text-xl); letter-spacing: 0.02em; }
 .boot-inner p { margin: 0; color: var(--ink-dim); font-size: var(--text-sm); }
 .spinner {
-  width: 46px; height: 46px; margin: 0 auto;
-  border: 3px solid var(--line-strong); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 900ms linear infinite;
+  width: 56px; height: 56px; margin: 0 auto; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-top-color: var(--accent);
+  box-shadow: 0 0 34px -6px var(--bloom);
+  animation: spin 900ms linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 
 .failure-inner { max-width: 760px; width: 100%; }
 .failure-inner h2 { margin: 0 0 var(--gap-2); font-size: var(--text-xl); color: var(--alert); }
@@ -269,16 +409,37 @@
 }
 .toast {
   padding: var(--gap-3) var(--gap-5);
-  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
-  box-shadow: var(--shadow); font-size: var(--text-sm);
+  background: var(--glass); backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-edge); border-radius: var(--radius-pill);
+  box-shadow: var(--shadow), 0 0 36px -12px var(--bloom);
+  font-size: var(--text-sm);
   animation: rise var(--speed) var(--ease);
 }
 .toast[data-tone="warn"]  { border-color: var(--warn); }
 .toast[data-tone="alert"] { border-color: var(--alert); }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 
-/* A narrow screen drops the rail labels rather than the rail. */
-@media (max-width: 900px) {
+/* ── Motion ─────────────────────────────────────────────────── */
+@keyframes panelIn { from { opacity: 0; transform: translateY(16px) scale(0.985); } }
+@keyframes rise    { from { opacity: 0; transform: translateY(10px); } }
+@keyframes breathe { 50% { opacity: 0.45; } }
+
+/* Ambience is decoration; it is the first thing to go. The interface keeps its
+   full layout and colour, it simply stops moving. */
+@media (prefers-reduced-motion: reduce) {
+  .orb, .tile, .hero, .toast, .dot { animation: none !important; }
+  .spinner { animation-duration: 2.4s; }
+  .hero-rail-fill { transition: none; }
+  .tile-open::after { display: none; }
+}
+
+/* Below this the two halves stop fitting side by side; stack them and let the
+   hero shrink to a banner rather than squeezing the grid to one column. */
+@media (max-width: 1024px) {
   :root { --rail-width: 76px; }
   .rail-item .label { display: none; }
+  .launcher { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+  .hero { padding: var(--gap-5); }
+  .hero-time { font-size: 54px; }
+  .hero-stats { margin-top: var(--gap-4); grid-template-columns: repeat(3, 1fr); }
+  .hero-stats > div { flex-direction: column; align-items: flex-start; gap: 2px; }
 }

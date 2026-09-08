@@ -21,6 +21,7 @@
     toasts: $('toasts'),
     heroGreet: $('heroGreet'), heroClock: $('heroClock'), heroDate: $('heroDate'),
     heroTime: $('heroTime'), heroMeridiem: $('heroMeridiem'),
+    heroSeconds: $('heroSeconds'), heroRail: $('heroRail'),
     statApps: $('statApps'), statRunning: $('statRunning'), statVehicle: $('statVehicle'),
   };
 
@@ -60,9 +61,13 @@
     el.heroClock.dateTime = now.toISOString();
     el.heroDate.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
     el.heroGreet.textContent = greetingFor(now.getHours());
+    el.heroSeconds.textContent = String(now.getSeconds()).padStart(2, '0');
+    // Progress through the hour, so the panel has one thing visibly moving.
+    const through = (now.getMinutes() * 60 + now.getSeconds()) / 3600;
+    el.heroRail.style.width = `${(through * 100).toFixed(2)}%`;
   };
   tick();
-  setInterval(tick, 10_000);
+  setInterval(tick, 1000);
 
   /* ── Toasts ─────────────────────────────────────────────── */
   function toast(message, tone = 'info') {
@@ -115,6 +120,7 @@
       const tile = document.createElement('div');
       tile.className = 'tile';
       tile.dataset.state = app.state;
+      tile.style.setProperty('--i', String(el.grid.childElementCount));
 
       const openBtn = document.createElement('button');
       openBtn.className = 'tile-open';

@@ -60,6 +60,17 @@
   --radius-pill: 999px;
 
   --shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+
+  /* Ambient field. The panels above are translucent, so these are what the
+     glass has to refract — without them the "glass" is just a grey box. */
+  --orb-1: rgba(53, 224, 208, 0.20);
+  --orb-2: rgba(78, 122, 255, 0.18);
+  --orb-3: rgba(168, 85, 247, 0.13);
+  --grid-line: rgba(130, 205, 235, 0.20);
+  --glass: rgba(18, 26, 41, 0.55);
+  --glass-edge: rgba(150, 200, 230, 0.16);
+  --bloom: rgba(53, 224, 208, 0.30);
+
   --speed: 180ms;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
@@ -91,6 +102,14 @@
   --alert:         #b3231b;
 
   --shadow: 0 12px 30px rgba(18, 32, 56, 0.16);
+
+  --orb-1: rgba(0, 150, 138, 0.16);
+  --orb-2: rgba(64, 105, 220, 0.13);
+  --orb-3: rgba(150, 90, 220, 0.10);
+  --grid-line: rgba(40, 80, 110, 0.16);
+  --glass: rgba(255, 255, 255, 0.66);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --bloom: rgba(0, 120, 110, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {
