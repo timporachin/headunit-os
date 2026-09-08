@@ -1,0 +1,8 @@
+node_modules/
+
+# Apps are checked out here rather than vendored into this repo's history, so
+# each one stays on its own upstream and can be pulled independently.
+vendor/
+
+*.log
+.DS_Store

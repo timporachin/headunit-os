@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Head Unit</title>
+<link rel="stylesheet" href="/design/tokens.css">
+<link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+
+<div id="shell" class="shell" data-view="launcher">
+
+  <!-- Chrome the shell owns. An app never draws these, so they stay correct
+       even while an app is booting, wedged, or repainting. -->
+  <header class="statusbar">
+    <button id="homeBtn" class="status-home" title="Home" aria-label="Home">
+      <span class="glyph">⌂</span>
+    </button>
+    <div class="status-title">
+      <span id="statusTitle">Home</span>
+      <span id="statusState" class="status-state" hidden></span>
+    </div>
+    <div class="status-right">
+      <button id="themeBtn" class="status-chip" aria-label="Toggle day and night">
+        <span id="themeGlyph">☾</span>
+      </button>
+      <time id="clock" class="status-clock">--:--</time>
+    </div>
+  </header>
+
+  <nav class="rail" id="rail" aria-label="Installed apps">
+    <div class="rail-apps" id="railApps"></div>
+  </nav>
+
+  <!-- An immersive app hides the rail; this tab brings it back without
+       stealing space from a map or a camera view. -->
+  <button id="railTab" class="rail-tab" hidden aria-label="Show navigation">›</button>
+
+  <main class="stage" id="stage">
+
+    <section class="launcher" id="launcher">
+      <div class="launcher-head">
+        <h1>Head Unit</h1>
+        <p id="launcherSub">Installed apps</p>
+      </div>
+      <div class="grid" id="appGrid"></div>
+      <p class="launcher-empty" id="launcherEmpty" hidden>
+        No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.
+      </p>
+      <div class="registry-errors" id="registryErrors" hidden></div>
+    </section>
+
+    <!-- One frame per opened app, kept alive in the background so returning to
+         an app does not pay its boot cost twice. -->
+    <section class="frames" id="frames" hidden></section>
+
+    <section class="boot" id="boot" hidden>
+      <div class="boot-inner">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 id="bootName">Starting</h2>
+        <p id="bootNote">Bringing the app up…</p>
+      </div>
+    </section>
+
+    <section class="failure" id="failure" hidden>
+      <div class="failure-inner">
+        <h2 id="failName">Could not start</h2>
+        <p id="failWhy" class="failure-why"></p>
+        <pre id="failLog" class="failure-log" aria-label="App output"></pre>
+        <div class="failure-actions">
+          <button id="retryBtn" class="primary">Try again</button>
+          <button id="failHomeBtn">Back to home</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</div>
+
+<script src="/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "id": "gods-eye",
+  "name": "God's Eye View",
+  "icon": "🌐",
+  "description": "Photorealistic 3D globe with live aircraft, ships, satellites and public cameras.",
+  "kind": "process",
+  "cwd": "vendor/gods-eye-view",
+  "start": "npm run dev",
+  "portEnv": "PORT",
+  "immersive": true,
+  "boot": "on-demand",
+  "startTimeoutMs": 120000
+}

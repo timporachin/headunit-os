@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System</title>
+<!-- Both of these come from the shell's origin, so a page picks up the OS look
+     and the OS bridge without vendoring anything. -->
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<style>
+  body { padding: var(--gap-6); overflow-y: auto; }
+  h1 { margin: 0 0 var(--gap-1); font-size: var(--text-2xl); }
+  .lede { margin: 0 0 var(--gap-6); color: var(--ink-dim); font-size: var(--text-sm); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--gap-4); }
+  .card { padding: var(--gap-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+  .card h2 { margin: 0 0 var(--gap-3); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); }
+  .row { display: flex; justify-content: space-between; gap: var(--gap-3); padding: var(--gap-2) 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row .v { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-dim); text-align: right; }
+  .v.good { color: var(--ok); } .v.bad { color: var(--alert); } .v.idle { color: var(--warn); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--gap-3); margin-top: var(--gap-5); }
+</style>
+</head>
+<body>
+  <h1>System</h1>
+  <p class="lede">This page is a <code>static</code> app. It is served on its own port and talks to the shell only through the SDK.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h2>Shell bridge</h2>
+      <div class="row"><span>Connected</span><span class="v" id="connected">checking…</span></div>
+      <div class="row"><span>App id</span><span class="v" id="appid">—</span></div>
+      <div class="row"><span>Theme</span><span class="v" id="theme">—</span></div>
+    </div>
+    <div class="card">
+      <h2>Vehicle</h2>
+      <div class="row"><span>Source</span><span class="v" id="vsource">—</span></div>
+      <div class="row"><span>Speed</span><span class="v" id="vspeed">—</span></div>
+      <div class="row"><span>Parked</span><span class="v" id="vparked">—</span></div>
+    </div>
+    <div class="card">
+      <h2>Installed apps</h2>
+      <div id="applist"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="toastBtn">Send a toast</button>
+    <button id="titleBtn">Rename the status bar</button>
+    <button id="homeBtn">Back to launcher</button>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  headunit.ready(async (hu) => {
+    $('connected').textContent = hu.connected ? 'yes' : 'standalone';
+    $('connected').className = 'v ' + (hu.connected ? 'good' : 'idle');
+    $('appid').textContent = hu.app?.id || '(not hosted)';
+    $('theme').textContent = hu.theme;
+
+    const v = hu.vehicle;
+    $('vsource').textContent = v.source;
+    $('vsource').className = 'v ' + (v.source === 'unavailable' ? 'idle' : 'good');
+    $('vspeed').textContent = v.speed == null ? 'no signal' : `${v.speed} ${v.unit}`;
+    $('vparked').textContent = String(v.parked);
+
+    const res = await hu.listApps();
+    $('applist').innerHTML = (res?.apps || [])
+      .map((a) => `<div class="row"><span>${a.icon} ${a.name}</span><span class="v">${a.kind}</span></div>`)
+      .join('') || '<div class="row"><span>none</span></div>';
+  });
+
+  headunit.on('theme', (t) => { $('theme').textContent = t; });
+  headunit.on('vehicle', (v) => { $('vsource').textContent = v.source; });
+
+  $('toastBtn').onclick = () => headunit.toast('Hello from the System app');
+  $('titleBtn').onclick = () => headunit.setTitle('Renamed by the app · ' + new Date().toLocaleTimeString());
+  $('homeBtn').onclick = () => headunit.home();
+</script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+/*
+ * Head unit design tokens.
+ *
+ * Any page can pull this in with:
+ *   <link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+ * and inherit the OS look without importing a framework.
+ *
+ * The numbers here are driven by the room, not by taste. A head unit is read
+ * at arm's length in a moving vehicle by someone who should be looking at the
+ * road, so type runs larger than desktop and every target is big enough to hit
+ * without aiming. Night is the default because that is when a bright screen
+ * hurts; day mode exists for direct sunlight, where contrast has to win.
+ */
+
+:root {
+  /* ── Night (default) ─────────────────────────────────────── */
+  --bg:            #05070d;
+  --bg-raised:     #0c111c;
+  --bg-sunken:     #03050a;
+  --surface:       #121a29;
+  --surface-hover: #1a2436;
+  --line:          #1e2a3d;
+  --line-strong:   #2c3d57;
+
+  --ink:           #eef4ff;
+  --ink-dim:       #93a4c0;
+  --ink-faint:     #5b6b86;
+
+  --accent:        #35e0d0;
+  --accent-ink:    #04121a;
+  --accent-soft:   rgba(53, 224, 208, 0.12);
+
+  --ok:            #3ddc8a;
+  --warn:          #f5b342;
+  --alert:         #ff5f56;
+
+  /* ── Space. A 4px grid; touch needs the big end of it. ───── */
+  --gap-1: 4px;  --gap-2: 8px;  --gap-3: 12px; --gap-4: 16px;
+  --gap-5: 24px; --gap-6: 32px; --gap-7: 48px; --gap-8: 64px;
+
+  /* Minimum comfortable target in a moving vehicle. Never go under --touch-min. */
+  --touch-min: 48px;
+  --touch:     56px;
+  --touch-lg:  72px;
+
+  /* ── Type. Larger than desktop on purpose. ───────────────── */
+  --font: "Chakra Petch", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  --text-xs:  13px;
+  --text-sm:  15px;
+  --text:     17px;
+  --text-lg:  21px;
+  --text-xl:  28px;
+  --text-2xl: 38px;
+  --text-3xl: 54px;
+
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --speed: 180ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* Chrome sizes the shell reserves. Apps get everything else. */
+  --rail-width: 108px;
+  --statusbar-height: 56px;
+}
+
+/* ── Day. Sunlight readability: raise contrast, do not just invert. ── */
+:root[data-theme="day"] {
+  --bg:            #eef2f8;
+  --bg-raised:     #ffffff;
+  --bg-sunken:     #dde4ee;
+  --surface:       #ffffff;
+  --surface-hover: #e6ecf6;
+  --line:          #c6d0e0;
+  --line-strong:   #93a3bb;
+
+  --ink:           #0a1220;
+  --ink-dim:       #45536b;
+  --ink-faint:     #6d7b93;
+
+  --accent:        #00786e;
+  --accent-ink:    #ffffff;
+  --accent-soft:   rgba(0, 120, 110, 0.12);
+
+  --ok:            #14794a;
+  --warn:          #9a6100;
+  --alert:         #b3231b;
+
+  --shadow: 0 12px 30px rgba(18, 32, 56, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --speed: 0ms; }
+}
+
+/* ── A reset shaped for a fixed screen that must never scroll sideways ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Any rule of ours that sets `display` outranks the UA's [hidden] rule, so a
+   hidden panel would keep its box and keep swallowing taps. Settle it once. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--text);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  /* A touchscreen in a vehicle gets bumped. Kill the accidental text selection
+     and the double-tap zoom that come with a browser engine. */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button {
+  min-height: var(--touch-min);
+  padding: 0 var(--gap-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
+}
+button:hover { background: var(--surface-hover); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+
+/* Focus has to survive on a screen driven by touch AND a mouse. */
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--radius-pill); }
+::-webkit-scrollbar-track { background: transparent; }

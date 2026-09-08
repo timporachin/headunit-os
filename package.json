@@ -1,0 +1,13 @@
+{
+  "name": "headunit-os",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A touchscreen operating system for a vehicle head unit. Apps are URLs, not modules.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node --watch server/index.mjs"
+  }
+}
