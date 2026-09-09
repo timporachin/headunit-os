@@ -1,0 +1,226 @@
+/*
+ * YouTube app.
+ *
+ * Inherits the OS palette, type scale and touch sizing from the shell's
+ * tokens.css, so it reads as part of the system rather than a page that
+ * happens to be open. Layout is a fixed two-column stage: picture and
+ * transport on the left, library and search on the right. Nothing scrolls
+ * except the two lists.
+ */
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr minmax(330px, 30%);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Stage ──────────────────────────────────────────────────── */
+.stage {
+  display: flex; flex-direction: column; min-width: 0;
+  padding: var(--gap-5);
+  gap: var(--gap-4);
+}
+
+/* The picture holds 16:9 and centres in whatever room the stage has, rather
+   than stretching to fill it — a stretched box just makes the player letterbox
+   inside itself, wasting the height twice. */
+.screen-wrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+.screen {
+  position: relative;
+  width: 100%; max-width: 100%; max-height: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  background: #000;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  display: grid; place-items: center;
+}
+.screen iframe { width: 100%; height: 100%; border: 0; display: block; }
+/* The API swaps this div for an iframe, so both need to fill the box. */
+#player { width: 100%; height: 100%; }
+
+.placeholder, .drivelock {
+  position: absolute; inset: 0;
+  display: grid; place-content: center; justify-items: center; gap: var(--gap-2);
+  padding: var(--gap-5); text-align: center;
+  background: var(--bg-sunken);
+}
+.placeholder-mark, .drivelock-mark { font-size: 46px; line-height: 1; color: var(--ink-faint); }
+.drivelock-mark { color: var(--warn); }
+.placeholder-lede, .drivelock-lede { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+.placeholder-note, .drivelock-note {
+  margin: 0; max-width: 42ch; color: var(--ink-dim); font-size: var(--text-sm);
+}
+
+.nowbar {
+  display: flex; align-items: center; gap: var(--gap-4);
+  flex: none;
+}
+.now { flex: 1; min-width: 0; }
+.now-title {
+  margin: 0; font-size: var(--text-lg); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.now-by {
+  margin: 2px 0 0; color: var(--ink-dim); font-size: var(--text-sm);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.transport { display: flex; align-items: center; gap: var(--gap-2); flex: none; }
+.transport button {
+  min-height: var(--touch); height: var(--touch); width: var(--touch);
+  padding: 0; display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--surface); border-color: var(--line);
+  font-size: var(--text-lg); line-height: 1;
+}
+.transport button:hover { border-color: var(--accent); color: var(--accent); }
+.transport button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+
+/* ── Panel ──────────────────────────────────────────────────── */
+.panel {
+  display: flex; flex-direction: column; min-height: 0;
+  padding: var(--gap-5) var(--gap-5) var(--gap-5) 0;
+  gap: var(--gap-3);
+}
+
+.tabs { display: flex; gap: var(--gap-2); flex: none; }
+.tab {
+  flex: 1; min-height: var(--touch-min);
+  background: transparent; border-color: var(--line);
+  color: var(--ink-dim);
+  text-transform: uppercase; letter-spacing: 0.12em; font-size: var(--text-xs);
+}
+.tab[aria-selected="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+
+.paste { display: flex; gap: var(--gap-2); flex: none; }
+.paste input, .searchbar input {
+  flex: 1; min-width: 0; min-height: var(--touch-min);
+  padding: 0 var(--gap-3);
+  background: var(--bg-sunken); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+.paste input::placeholder, .searchbar input::placeholder { color: var(--ink-faint); }
+.paste button, .searchbar button { flex: none; }
+
+.pane { display: flex; flex-direction: column; min-height: 0; flex: 1; gap: var(--gap-3); }
+.searchbar { display: flex; gap: var(--gap-2); flex: none; }
+
+.list {
+  list-style: none; margin: 0; padding: 0;
+  overflow-y: auto; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: var(--gap-2);
+}
+.row {
+  display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.row:hover { border-color: var(--accent); }
+.row[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.row-open {
+  display: contents; /* the thumbnail and text are one target, the ✕ is another */
+}
+.row-thumb {
+  width: 92px; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 8px; background: var(--bg-sunken); display: block;
+}
+.row-text { min-width: 0; text-align: left; }
+.row-title {
+  margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.row-by { margin: 2px 0 0; font-size: var(--text-xs); color: var(--ink-dim); }
+.row-drop {
+  min-height: var(--touch-min); width: var(--touch-min); padding: 0;
+  display: grid; place-items: center;
+  background: transparent; border-color: transparent; color: var(--ink-faint);
+  border-radius: var(--radius-pill); font-size: var(--text);
+}
+.row-drop:hover { color: var(--alert); border-color: var(--alert); }
+
+/* A whole row is clickable; this button carries the click without breaking the grid. */
+.row-hit {
+  display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: var(--gap-3);
+  grid-column: 1 / 3;
+  padding: 0; background: transparent; border: 0; min-height: 0;
+  text-align: left;
+}
+
+.empty { margin: 0; color: var(--ink-dim); font-size: var(--text-sm); }
+
+/* ── Suggestions ────────────────────────────────────────────── */
+/*
+ * Tappable rather than a dropdown list. Typing is the worst part of using a
+ * touchscreen, so the fastest search is one where you stop after three letters
+ * and hit a chip.
+ */
+.suggestions {
+  display: flex; flex-wrap: wrap; gap: var(--gap-2);
+  flex: none;
+}
+.suggest {
+  min-height: var(--touch-min);
+  padding: 0 var(--gap-3);
+  background: var(--surface); border-color: var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-dim); font-size: var(--text-sm);
+}
+.suggest:hover { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 1024px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .panel { padding: 0 var(--gap-4) var(--gap-4); max-height: 46vh; }
+}
+
+/* ── Plyr ───────────────────────────────────────────────────── */
+/*
+ * Plyr is themed entirely through custom properties, so the player inherits the
+ * OS palette instead of arriving with its own. The sizing is the point: stock
+ * Plyr uses an 18px icon with 10px spacing, which is a ~38px target — under the
+ * 48px floor this system holds itself to, and far too small to hit in a moving
+ * vehicle. 28px icons with 14px spacing puts the buttons at ~56px.
+ */
+.screen .plyr,
+.screen .plyr__video-wrapper,
+.screen .plyr iframe {
+  width: 100%; height: 100%;
+}
+.screen .plyr { --plyr-video-background: #000; border-radius: inherit; }
+
+.plyr {
+  --plyr-color-main: var(--accent);
+  --plyr-font-family: var(--font);
+  --plyr-font-size-base: var(--text-sm);
+  --plyr-font-size-small: var(--text-xs);
+  --plyr-font-size-time: var(--text-sm);
+
+  --plyr-control-icon-size: 28px;
+  --plyr-control-spacing: 14px;
+
+  --plyr-video-control-color: #fff;
+  --plyr-video-control-color-hover: var(--accent-ink);
+  --plyr-video-control-background-hover: var(--accent);
+  --plyr-video-controls-background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+
+  /* A scrub bar you can actually land on with a thumb. */
+  --plyr-range-track-height: 6px;
+  --plyr-range-thumb-height: 18px;
+  --plyr-range-thumb-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --plyr-range-fill-background: var(--accent);
+
+  --plyr-menu-background: var(--surface);
+  --plyr-menu-color: var(--ink);
+  --plyr-menu-border-color: var(--line);
+  --plyr-menu-radius: var(--radius);
+  --plyr-tooltip-background: var(--surface);
+  --plyr-tooltip-color: var(--ink);
+  --plyr-tooltip-radius: var(--radius);
+}
+
+/* Plyr's own focus ring is thin; match the OS one so keyboard and touch agree. */
+.plyr__control:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }

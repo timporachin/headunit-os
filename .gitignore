@@ -1,8 +1,16 @@
 node_modules/
 
-# Apps are checked out here rather than vendored into this repo's history, so
-# each one stays on its own upstream and can be pulled independently.
-vendor/
+# Third-party app checkouts live here rather than in this repo's history, so
+# each stays on its own upstream and can be pulled independently.
+#
+# Anchored to the root on purpose: an unanchored "vendor/" matches a directory
+# of that name at ANY depth, which silently swallows an app's own bundled
+# library — apps/youtube/web/vendor/plyr.* — and ships an app missing the code
+# it loads. That has already happened once.
+/vendor/
 
 *.log
 .DS_Store
+
+# App dependencies are installed per app, not committed.
+apps/*/node_modules/

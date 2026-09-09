@@ -1,0 +1,13 @@
+{
+  "id": "youtube",
+  "name": "YouTube",
+  "icon": "▶",
+  "description": "Search and watch YouTube. No API key, no quota — InnerTube for finding, the official player for playing.",
+  "kind": "process",
+  "cwd": "apps/youtube",
+  "start": "node server.mjs",
+  "portEnv": "PORT",
+  "immersive": false,
+  "boot": "on-demand",
+  "startTimeoutMs": 30000
+}

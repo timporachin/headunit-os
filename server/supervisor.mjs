@@ -165,6 +165,13 @@ export async function start(app) {
         const proc = spawn(app.start, {
           cwd: app.cwd,
           shell: true,
+          // shell:true means the child is `sh -c "<start>"`, and the real server
+          // is ITS child. Killing the shell alone orphans that server: it keeps
+          // running, keeps its port, and the next start silently lands on a
+          // different port while requests still reach the stale process.
+          // detached makes the child a process-group leader so the whole group
+          // can be signalled together — see stop().
+          detached: true,
           env: {
             ...process.env,
             HEADUNIT_SHELL_ORIGIN: SHELL_ORIGIN,
@@ -199,11 +206,23 @@ export async function start(app) {
   return instance.launching;
 }
 
+/** Signal the whole process group, so a shell wrapper cannot outlive its child. */
+function killTree(proc) {
+  if (!proc?.pid) return;
+  try {
+    process.kill(-proc.pid, 'SIGTERM');
+  } catch {
+    // No group (already reaped, or a platform without them): fall back to the
+    // direct kill, which still beats leaving it running.
+    try { proc.kill(); } catch { /* already gone */ }
+  }
+}
+
 export function stop(id) {
   const instance = instances.get(id);
   if (!instance) return false;
   instance.state = 'stopped';
-  instance.proc?.kill();
+  killTree(instance.proc);
   instance.server?.close();
   instances.delete(id);
   return true;

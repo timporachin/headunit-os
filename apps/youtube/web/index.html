@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube</title>
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<!-- Plyr ships its own stylesheet; ours re-skins it from the OS tokens below. -->
+<link rel="stylesheet" href="vendor/plyr.css">
+<link rel="stylesheet" href="youtube.css">
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<script src="vendor/plyr.min.js"></script>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <section class="stage">
+   <div class="screen-wrap">
+    <div class="screen" id="screen">
+      <!-- Plyr takes this over and drives the YouTube IFrame API behind it,
+           so playback is still the official embed — only the controls are ours. -->
+      <div id="player" data-plyr-provider="youtube" data-plyr-embed-id=""></div>
+
+      <div class="placeholder" id="placeholder">
+        <span class="placeholder-mark">▶</span>
+        <p class="placeholder-lede">Nothing playing</p>
+        <p class="placeholder-note">Paste a link, or pick something from your library.</p>
+      </div>
+
+      <!-- Shown instead of the picture when the vehicle reports it is moving. -->
+      <div class="drivelock" id="drivelock" hidden>
+        <span class="drivelock-mark">⚠</span>
+        <p class="drivelock-lede">Video hidden while moving</p>
+        <p class="drivelock-note">Audio keeps playing. The picture returns when the vehicle is parked.</p>
+      </div>
+    </div>
+   </div>
+
+    <div class="nowbar">
+      <div class="now">
+        <p class="now-title" id="nowTitle">—</p>
+        <p class="now-by" id="nowBy"></p>
+      </div>
+      <div class="transport">
+        <button id="saveBtn" title="Save to library" aria-label="Save to library">☆</button>
+        <button id="fullBtn" title="Fill the screen" aria-label="Fill the screen">⤢</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tabLibrary" role="tab" aria-selected="true">Library</button>
+      <button class="tab" id="tabSearch" role="tab" aria-selected="false">Search</button>
+    </div>
+
+    <div class="paste">
+      <input id="urlInput" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="Paste a YouTube link or ID">
+      <button id="urlBtn" class="primary">Play</button>
+    </div>
+
+    <div class="pane" id="paneLibrary">
+      <ul class="list" id="libraryList"></ul>
+      <p class="empty" id="libraryEmpty">
+        Nothing saved yet. Play something and tap ☆ to keep it here.
+      </p>
+    </div>
+
+    <div class="pane" id="paneSearch" hidden>
+      <div class="searchbar">
+        <input id="searchInput" type="search" autocomplete="off" placeholder="Search YouTube">
+        <button id="searchBtn">Go</button>
+      </div>
+      <div class="suggestions" id="suggestions" hidden></div>
+      <ul class="list" id="resultsList"></ul>
+      <p class="empty" id="searchEmpty" hidden></p>
+
+    </div>
+  </aside>
+
+</div>
+
+<script src="youtube.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+Plyr 3.8.4 — MIT — https://github.com/sampotts/plyr
+Prebuilt files copied from the npm package. Update by bumping the version
+here and recopying dist/plyr.min.js and dist/plyr.css.

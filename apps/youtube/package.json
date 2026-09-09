@@ -1,0 +1,9 @@
+{
+  "name": "headunit-app-youtube",
+  "private": true,
+  "type": "module",
+  "description": "YouTube for the head unit: InnerTube for discovery, the official embed for playback.",
+  "main": "server.mjs",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "youtubei.js": "^18.0.0" }
+}
