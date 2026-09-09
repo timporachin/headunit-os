@@ -13,6 +13,17 @@
  */
 
 :root {
+  /* Declares which scheme the page is actually painted in, so native scrollbars,
+     form controls and focus rings match the theme instead of arriving light on
+     a dark screen.
+
+     It does NOT reach into apps: measured in Chrome, color-scheme does not
+     propagate across an origin boundary, so a framed third-party app still
+     reads the OS setting rather than this shell's toggle. An app that adopts
+     sdk/headunit.js follows the shell properly; one that does not follows
+     Windows. Worth knowing before assuming a theme bug. */
+  color-scheme: dark;
+
   /* ── Night (default) ─────────────────────────────────────── */
   --bg:            #05070d;
   --bg-raised:     #0c111c;
@@ -81,6 +92,7 @@
 
 /* ── Day. Sunlight readability: raise contrast, do not just invert. ── */
 :root[data-theme="day"] {
+  color-scheme: light;
   --bg:            #eef2f8;
   --bg-raised:     #ffffff;
   --bg-sunken:     #dde4ee;
