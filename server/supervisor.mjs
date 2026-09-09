@@ -37,22 +37,42 @@ function claimPort(preferred) {
   return nextPort++;
 }
 
+/*
+ * Both loopback families, always.
+ *
+ * An app told to serve on "localhost" binds to whatever that name resolves to
+ * first, and that differs by platform: ::1 on Windows, 127.0.0.1 on Linux.
+ * Probing only IPv4 makes a perfectly healthy Windows app look dead for the
+ * entire start timeout — the app logs "ready", and the supervisor still calls
+ * the launch failed. Ask both and take whichever answers.
+ */
+const LOOPBACK = ['127.0.0.1', '::1'];
+
+/** Resolve true if something accepts a connection on host:port right now. */
+function probe(host, port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ port, host });
+    const settle = (ok) => { socket.destroy(); resolve(ok); };
+    socket.setTimeout(1500);
+    socket.once('connect', () => settle(true));
+    socket.once('error', () => settle(false));
+    socket.once('timeout', () => settle(false));
+  });
+}
+
 /** Resolve once something is listening on `port`, or reject at the deadline. */
 function waitForPort(port, timeoutMs, isDead) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
-    const attempt = () => {
+    const attempt = async () => {
       if (isDead?.()) return reject(new Error('the app exited before it served anything'));
-      const socket = net.connect({ port, host: '127.0.0.1' });
-      socket.setTimeout(1500);
-      socket.once('connect', () => { socket.destroy(); resolve(); });
-      socket.once('error', retry);
-      socket.once('timeout', () => { socket.destroy(); retry(); });
-      function retry() {
-        socket.destroy();
-        if (Date.now() > deadline) reject(new Error(`nothing listened on port ${port} within ${Math.round(timeoutMs / 1000)}s`));
-        else setTimeout(attempt, 300);
+      const answered = await Promise.all(LOOPBACK.map((host) => probe(host, port)));
+      if (answered.some(Boolean)) return resolve();
+      if (Date.now() > deadline) {
+        return reject(new Error(
+          `nothing listened on port ${port} (tried ${LOOPBACK.join(' and ')}) within ${Math.round(timeoutMs / 1000)}s`));
       }
+      setTimeout(attempt, 300);
     };
     attempt();
   });
@@ -86,7 +106,7 @@ function serveStatic(rootDir, port) {
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => resolve(server));
+    server.listen(port, 'localhost', () => resolve(server));
   });
 }
 
@@ -105,7 +125,7 @@ export function describe(app) {
   if (!i) return { state: 'stopped', url: null };
   return {
     state: i.state,
-    url: i.state === 'ready' ? `http://127.0.0.1:${i.port}` : null,
+    url: i.state === 'ready' ? `http://localhost:${i.port}` : null,
     error: i.error || null,
   };
 }
@@ -122,7 +142,7 @@ export async function start(app) {
   if (app.kind === 'external') return { url: app.url };
 
   const existing = instances.get(app.id);
-  if (existing?.state === 'ready') return { url: `http://127.0.0.1:${existing.port}` };
+  if (existing?.state === 'ready') return { url: `http://localhost:${existing.port}` };
   if (existing?.launching) return existing.launching;
 
   const instance = { app, port: claimPort(app.port), state: 'starting', error: null, log: [] };
@@ -153,7 +173,7 @@ export async function start(app) {
         await waitForPort(instance.port, app.startTimeoutMs, () => exited);
       }
       instance.state = 'ready';
-      return { url: `http://127.0.0.1:${instance.port}` };
+      return { url: `http://localhost:${instance.port}` };
     } catch (err) {
       instance.state = 'failed';
       instance.error = err.message;
