@@ -100,6 +100,13 @@ async function handleApi(req, res, url) {
 
 const server = createServer(async (req, res) => {
   try {
+    // The shell frames apps; nothing may frame the shell. An app that allows
+    // this origin to frame it is trusting this page specifically, and that
+    // trust only holds while this page cannot itself be wrapped by a third
+    // party. Both headers: the modern control, and the one older engines obey.
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+
     const url = new URL(req.url, `http://localhost:${PORT}`);
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
 

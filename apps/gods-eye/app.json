@@ -5,7 +5,7 @@
   "description": "Photorealistic 3D globe with live aircraft, ships, satellites and public cameras.",
   "kind": "process",
   "cwd": "vendor/gods-eye-view",
-  "start": "npm run dev",
+  "start": "npm run dev -- --config ../../apps/gods-eye/vite.headunit.mjs",
   "portEnv": "PORT",
   "immersive": true,
   "boot": "on-demand",

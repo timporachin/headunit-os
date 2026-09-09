@@ -17,6 +17,14 @@ import path from 'node:path';
 const FIRST_PORT = 4200;
 const LOG_LINES = 200;
 
+/* Handed to every process app as HEADUNIT_SHELL_ORIGIN. An app that restricts
+ * who may frame it needs to name this shell specifically rather than trusting
+ * anything that happens to load it — see apps/gods-eye/vite.headunit.mjs. Both
+ * loopback spellings are listed because which one the browser uses is the
+ * user's choice, not ours. */
+const SHELL_PORT = Number(process.env.PORT) || 4100;
+const SHELL_ORIGIN = `http://localhost:${SHELL_PORT} http://127.0.0.1:${SHELL_PORT}`;
+
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -157,7 +165,12 @@ export async function start(app) {
         const proc = spawn(app.start, {
           cwd: app.cwd,
           shell: true,
-          env: { ...process.env, ...app.env, [app.portEnv]: String(instance.port) },
+          env: {
+            ...process.env,
+            HEADUNIT_SHELL_ORIGIN: SHELL_ORIGIN,
+            ...app.env,
+            [app.portEnv]: String(instance.port),
+          },
           stdio: ['ignore', 'pipe', 'pipe'],
         });
         instance.proc = proc;
