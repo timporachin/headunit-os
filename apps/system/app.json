@@ -1,9 +1,0 @@
-{
-  "id": "system",
-  "name": "System",
-  "icon": "⚙",
-  "description": "Shell status, installed apps, and a live check that the SDK bridge is connected.",
-  "kind": "static",
-  "dir": ".",
-  "boot": "on-demand"
-}

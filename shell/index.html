@@ -27,7 +27,7 @@
       <span class="glyph">⌂</span>
     </button>
     <div class="status-title">
-      <span id="statusTitle">Home</span>
+      <span id="statusTitle">F-250</span>
       <span id="statusState" class="status-state" hidden></span>
     </div>
     <div class="status-right">
@@ -49,42 +49,27 @@
   <main class="stage" id="stage">
 
     <section class="launcher" id="launcher">
+      <!--
+        The home screen is a photograph of the vehicle with the apps hidden in
+        it: a hotspot on the truck pulses, and tapping it blooms the installed
+        apps outward from that point. The menu is built from the registry, so
+        the arc is whatever is installed rather than a fixed set.
+      -->
+      <div class="scene">
+        <img class="scene-bg" src="/assets/truck.jpg" alt="" draggable="false">
+        <div class="scene-backdrop" id="sceneBackdrop"></div>
 
-      <!-- The glance half. A head unit home screen is looked at far more often
-           than it is used, so the thing it shows at rest has to be worth the
-           space: time first, at a size readable from the driver's seat. -->
-      <div class="hero">
-        <div class="hero-now">
-          <p class="hero-greet" id="heroGreet">Hello</p>
-          <time class="hero-clock" id="heroClock">
-            <span class="hero-time" id="heroTime">--:--</span>
-            <span class="hero-tail">
-              <span class="hero-meridiem" id="heroMeridiem"></span>
-              <span class="hero-seconds" id="heroSeconds">00</span>
-            </span>
-          </time>
-          <div class="hero-rail" aria-hidden="true"><span class="hero-rail-fill" id="heroRail"></span></div>
-          <p class="hero-date" id="heroDate">&nbsp;</p>
-        </div>
-        <dl class="hero-stats">
-          <div><dt>Installed</dt><dd id="statApps">&mdash;</dd></div>
-          <div><dt>Running</dt><dd id="statRunning">&mdash;</dd></div>
-          <div><dt>Vehicle</dt><dd id="statVehicle">no signal</dd></div>
-        </dl>
-      </div>
+        <button class="truck-hotspot" id="truckHotspot"
+                aria-label="Open apps" aria-expanded="false" aria-controls="radialMenu"></button>
+        <div class="radial-menu" id="radialMenu" role="menu" aria-label="Installed apps"></div>
 
-      <div class="apps">
-        <div class="apps-head">
-          <h2>Apps</h2>
-          <span id="launcherSub"></span>
-        </div>
-        <div class="grid" id="appGrid"></div>
+        <p class="scene-hint" id="sceneHint">Tap the truck</p>
+
         <p class="launcher-empty" id="launcherEmpty" hidden>
           No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.
         </p>
         <div class="registry-errors" id="registryErrors" hidden></div>
       </div>
-
     </section>
 
     <!-- One frame per opened app, kept alive in the background so returning to

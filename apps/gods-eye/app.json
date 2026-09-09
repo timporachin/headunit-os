@@ -2,6 +2,7 @@
   "id": "gods-eye",
   "name": "God's Eye View",
   "icon": "🌐",
+  "iconSvg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><ellipse cx=\"12\" cy=\"12\" rx=\"3.6\" ry=\"8.5\"/><path d=\"M3.5 12h17\"/></svg>",
   "description": "Photorealistic 3D globe with live aircraft, ships, satellites and public cameras.",
   "kind": "process",
   "cwd": "vendor/gods-eye-view",

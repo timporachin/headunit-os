@@ -12,18 +12,19 @@
   const $ = (id) => document.getElementById(id);
   const el = {
     shell: $('shell'), stage: $('stage'), rail: $('rail'), railApps: $('railApps'),
-    railTab: $('railTab'), launcher: $('launcher'), grid: $('appGrid'),
-    empty: $('launcherEmpty'), errors: $('registryErrors'), sub: $('launcherSub'),
+    railTab: $('railTab'), launcher: $('launcher'),
+    empty: $('launcherEmpty'), errors: $('registryErrors'),
+    sceneBackdrop: $('sceneBackdrop'), truckHotspot: $('truckHotspot'),
+    radialMenu: $('radialMenu'), sceneHint: $('sceneHint'),
     frames: $('frames'), boot: $('boot'), bootName: $('bootName'), bootNote: $('bootNote'),
     failure: $('failure'), failName: $('failName'), failWhy: $('failWhy'), failLog: $('failLog'),
     statusTitle: $('statusTitle'), statusState: $('statusState'),
     clock: $('clock'), themeBtn: $('themeBtn'), themeGlyph: $('themeGlyph'),
     toasts: $('toasts'),
-    heroGreet: $('heroGreet'), heroClock: $('heroClock'), heroDate: $('heroDate'),
-    heroTime: $('heroTime'), heroMeridiem: $('heroMeridiem'),
-    heroSeconds: $('heroSeconds'), heroRail: $('heroRail'),
-    statApps: $('statApps'), statRunning: $('statRunning'), statVehicle: $('statVehicle'),
   };
+
+  /* The vehicle's name, shown in the status bar whenever no app is open. */
+  const VEHICLE = 'F-250';
 
   /* The single source of truth for vehicle telemetry. Nothing is wired to a
    * real vehicle yet, so this says so rather than reporting a plausible zero:
@@ -48,26 +49,11 @@
   el.themeBtn.addEventListener('click', () => applyTheme(theme === 'night' ? 'day' : 'night'));
 
   /* ── Clock ──────────────────────────────────────────────── */
-  const greetingFor = (hour) => hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-
   const tick = () => {
-    const now = new Date();
-    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    el.clock.textContent = time;
-    // A 24-hour locale yields no meridiem; the span then collapses via :empty.
-    const [digits, meridiem = ''] = time.split(' ');
-    el.heroTime.textContent = digits;
-    el.heroMeridiem.textContent = meridiem;
-    el.heroClock.dateTime = now.toISOString();
-    el.heroDate.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-    el.heroGreet.textContent = greetingFor(now.getHours());
-    el.heroSeconds.textContent = String(now.getSeconds()).padStart(2, '0');
-    // Progress through the hour, so the panel has one thing visibly moving.
-    const through = (now.getMinutes() * 60 + now.getSeconds()) / 3600;
-    el.heroRail.style.width = `${(through * 100).toFixed(2)}%`;
+    el.clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   tick();
-  setInterval(tick, 1000);
+  setInterval(tick, 10_000);
 
   /* ── Toasts ─────────────────────────────────────────────── */
   function toast(message, tone = 'info') {
@@ -95,6 +81,7 @@
   el.railTab.addEventListener('click', () => setImmersive(false));
 
   function setStatus(title, state) {
+    title = title || VEHICLE;
     el.statusTitle.textContent = title;
     el.statusState.textContent = state || '';
     el.statusState.hidden = !state;
@@ -108,65 +95,111 @@
     render(data.errors);
   }
 
+  /*
+   * Where each app sits on the arc.
+   *
+   * The mockup fixed five items across 190°-350°. Driving that off the item
+   * count puts two apps at the extreme ends with a hole between them, so the
+   * fan is built the other way round: a fixed step per item, centred straight
+   * up from the truck. Two apps sit either side of centre; five reproduce the
+   * mockup's spread; more widen it until the span is capped.
+   */
+  const RADIUS = 132;
+  const MIN_GAP = 156;   // centre-to-centre, in px, so labels cannot collide
+  const MAX_SPAN = 300;
+
+  /* The angle that puts two neighbours MIN_GAP apart on a circle of RADIUS.
+   * Spacing by a fixed angle looked right until it was drawn: at 42° the two
+   * items sat 94px apart and their labels ran together into one line. Distance
+   * is what actually has to be preserved, so solve for the angle instead. */
+  const gapStep = 2 * Math.asin(Math.min(1, MIN_GAP / (2 * RADIUS))) * 180 / Math.PI;
+
+  function placeOnArc(index, count) {
+    // Past a certain count the ring runs out of room and the cap wins; the
+    // label's own ellipsis covers what the spacing then cannot.
+    const step = count > 1 ? Math.min(gapStep, MAX_SPAN / (count - 1)) : gapStep;
+    // 270° is straight up: screen y grows downward, so sin() is negative there.
+    const angle = (270 + (index - (count - 1) / 2) * step) * Math.PI / 180;
+    return { dx: RADIUS * Math.cos(angle), dy: RADIUS * Math.sin(angle) };
+  }
+
+  /* An app may ship inline SVG for its icon; otherwise its emoji is used.
+   * Manifests are local config that already names a command to execute, so
+   * markup from one is not a new trust boundary. */
+  const iconMarkup = (app) => app.iconSvg || `<span class="glyph">${escape(app.icon)}</span>`;
+
   function render(errors = []) {
-    el.grid.replaceChildren();
+    el.radialMenu.replaceChildren();
     el.railApps.replaceChildren();
     el.empty.hidden = apps.length > 0;
-    el.sub.textContent = apps.length === 1 ? '1 app installed' : `${apps.length} apps installed`;
 
-    for (const app of apps) {
+    apps.forEach((app, index) => {
       const running = opened.has(app.id) || app.state === 'ready';
-
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-      tile.dataset.state = app.state;
-      tile.style.setProperty('--i', String(el.grid.childElementCount));
-
-      const openBtn = document.createElement('button');
-      openBtn.className = 'tile-open';
-      openBtn.innerHTML = `
-        <span class="tile-icon">${escape(app.icon)}</span>
-        <span class="tile-name">${escape(app.name)}</span>
-        <span class="tile-desc">${escape(app.description)}</span>
-        <span class="tile-foot"><span class="dot" data-state="${escape(app.state)}"></span>${escape(labelFor(app))}</span>`;
-      openBtn.addEventListener('click', () => open(app.id));
-      tile.append(openBtn);
-
-      // Only a running app gets a stop control, so the launcher never offers an
-      // action that would do nothing.
-      if (running) {
-        const stopBtn = document.createElement('button');
-        stopBtn.className = 'tile-stop';
-        stopBtn.title = `Stop ${app.name}`;
-        stopBtn.setAttribute('aria-label', `Stop ${app.name}`);
-        stopBtn.textContent = '\u00d7';
-        stopBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          stopApp(app.id);
-        });
-        tile.append(stopBtn);
-      }
-      el.grid.append(tile);
+      const { dx, dy } = placeOnArc(index, apps.length);
 
       const item = document.createElement('button');
-      item.className = 'rail-item';
-      item.dataset.running = String(opened.has(app.id));
-      if (app.id === currentId) item.setAttribute('aria-current', 'true');
-      item.innerHTML = `<span class="glyph">${escape(app.icon)}</span><span class="label">${escape(app.name)}</span>`;
-      item.addEventListener('click', () => open(app.id));
-      el.railApps.append(item);
-    }
+      item.className = 'radial-item';
+      item.setAttribute('role', 'menuitem');
+      item.dataset.running = String(running);
+      item.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      item.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+      // Staggered so they bloom rather than appear together.
+      item.style.transitionDelay = `${index * 45}ms`;
+      item.setAttribute('aria-label', app.name);
+      item.innerHTML = `${iconMarkup(app)}<span class="rlabel">${escape(app.name)}</span>`;
+      item.addEventListener('click', (event) => { event.stopPropagation(); closeMenu(); open(app.id); });
+
+      if (running) {
+        const stop = document.createElement('button');
+        stop.className = 'radial-stop';
+        stop.textContent = '\u00d7';
+        stop.setAttribute('aria-label', `Stop ${app.name}`);
+        stop.addEventListener('click', (event) => { event.stopPropagation(); stopApp(app.id); });
+        item.append(stop);
+      }
+      el.radialMenu.append(item);
+
+      const railItem = document.createElement('button');
+      railItem.className = 'rail-item';
+      railItem.dataset.running = String(running);
+      if (app.id === currentId) railItem.setAttribute('aria-current', 'true');
+      railItem.setAttribute('aria-label', app.name);
+      railItem.title = app.name;
+      railItem.innerHTML = `<span class="glyph">${iconMarkup(app)}</span>`;
+      railItem.addEventListener('click', () => open(app.id));
+      el.railApps.append(railItem);
+    });
 
     el.errors.hidden = errors.length === 0;
     el.errors.textContent = errors.join('\n');
-
-    const running = apps.filter((a) => opened.has(a.id) || a.state === 'ready').length;
-    el.statApps.textContent = String(apps.length);
-    el.statRunning.textContent = String(running);
-    el.statVehicle.textContent = vehicle.source === 'unavailable'
-      ? 'no signal'
-      : `${vehicle.speed ?? '--'} ${vehicle.unit}`;
   }
+
+  /* ── The radial menu ────────────────────────────────────── */
+
+  function openMenu() {
+    if (!apps.length) return;
+    el.radialMenu.classList.add('open');
+    el.truckHotspot.classList.add('open');
+    el.truckHotspot.setAttribute('aria-expanded', 'true');
+    el.sceneBackdrop.classList.add('open');
+    el.sceneHint.classList.add('hidden');
+  }
+
+  function closeMenu() {
+    el.radialMenu.classList.remove('open');
+    el.truckHotspot.classList.remove('open');
+    el.truckHotspot.setAttribute('aria-expanded', 'false');
+    el.sceneBackdrop.classList.remove('open');
+    el.sceneHint.classList.remove('hidden');
+  }
+
+  el.truckHotspot.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (el.radialMenu.classList.contains('open')) closeMenu();
+    else openMenu();
+  });
+  el.sceneBackdrop.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMenu(); });
 
   /** Stop an app and drop its frame, so reopening it is a clean boot. */
   async function stopApp(id) {
@@ -180,9 +213,6 @@
     await refresh();
   }
 
-  const labelFor = (app) => ({
-    ready: 'running', starting: 'starting', failed: 'failed', stopped: app.kind,
-  }[app.state] || app.kind);
 
   const escape = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -249,7 +279,8 @@
       send(entry.frame, 'visibility', { visible: false });
     }
     setImmersive(false);
-    setStatus('Home', null);
+    setStatus(VEHICLE, null);
+    closeMenu();
     show('launcher');
     refresh();
   }
@@ -326,6 +357,6 @@
 
   /* ── Go ─────────────────────────────────────────────────── */
   applyTheme(theme);
-  setStatus('Home', null);
+  setStatus(VEHICLE, null);
   refresh().catch((err) => toast(`Could not load the app registry: ${err.message}`, 'alert'));
 })();

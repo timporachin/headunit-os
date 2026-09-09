@@ -35,6 +35,11 @@ function normalize(raw, dir) {
     id: raw.id,
     name: raw.name || raw.id,
     icon: raw.icon || '▦',
+    /* Optional inline SVG, drawn instead of the emoji. Manifests are local
+     * config that already names a command to execute, so markup from one is
+     * not a new trust boundary — but it is injected as HTML, so keep it to
+     * an <svg> element. */
+    iconSvg: typeof raw.iconSvg === 'string' ? raw.iconSvg : null,
     description: raw.description || '',
     kind: raw.kind,
     // An immersive app owns the whole screen; the shell collapses its nav rail

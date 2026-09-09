@@ -20,6 +20,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
+  // Without these the home screen's photograph 404s.
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
 };
 
 // URL prefix -> directory on disk. The SDK and the design tokens are published
@@ -52,7 +54,7 @@ async function sendFile(res, file) {
 
 /** The launcher's view of an app: its manifest plus its live run state. */
 const publicApp = (app) => ({
-  id: app.id, name: app.name, icon: app.icon,
+  id: app.id, name: app.name, icon: app.icon, iconSvg: app.iconSvg,
   description: app.description, kind: app.kind,
   immersive: app.immersive, boot: app.boot,
   ...supervisor.describe(app),
