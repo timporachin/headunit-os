@@ -18,14 +18,12 @@
   const LIB_KEY = 'headunit.youtube.library';
 
   let player = null;
-  let ready = false;
-  let unavailable = false;   // the player API never arrived
+  let ready = false;         // the YouTube embed has been constructed at least once
   let readyTimer = null;
-  let pendingVideo = null;   // asked for before the player finished loading
+  let attemptId = 0;         // so a stale timer cannot fail a newer attempt
 
-  /* How long to wait for YouTube's API before saying so. A script tag that is
-   * blocked rather than refused fires no error event, so a timeout is the only
-   * thing that catches every way this fails. */
+  /* How long to wait for the embed to come up before saying it did not.
+   * Long enough for a slow connection, short enough not to look hung. */
   const READY_TIMEOUT_MS = 12_000;
   let current = null;        // { id, title, author }
   let library = [];
@@ -106,12 +104,14 @@
       youtube: { rel: 0, modestbranding: 1, playsinline: 1 },
       storage: { enabled: true, key: 'headunit.youtube.plyr' },
     });
-    player.on('ready', () => {
+    const arrived = () => {
       ready = true;
       clearTimeout(readyTimer);
+      clearUnavailable();
       readMeta();
-    });
-    player.on('playing', readMeta);
+    };
+    player.on('ready', arrived);
+    player.on('playing', arrived);
     player.on('error', onPlayerError);
     return player;
   }
@@ -134,51 +134,58 @@
     refreshSaveButton();
   }
 
-  /** Say plainly that the player is not coming, instead of looking merely idle. */
+  /*
+   * Reporting an unreachable player is a statement about the last attempt, not a
+   * permanent verdict. It used to latch: one failure disabled playback for the
+   * whole session, which is precisely wrong in a vehicle that drives in and out
+   * of coverage. Every attempt now starts clean and a success clears it.
+   */
   function markUnavailable() {
-    if (ready) return;
-    unavailable = true;
     const box = $('placeholder');
     box.hidden = false;
     box.querySelector('.placeholder-mark').textContent = '\u26a0';
     box.querySelector('.placeholder-lede').textContent = 'YouTube is unreachable';
     box.querySelector('.placeholder-note').textContent =
-      'The player could not be loaded. This app needs an internet connection; your saved '
-      + 'library is still here and will play once the connection is back.';
+      'The player could not be loaded. Check the connection and try again; your saved '
+      + 'library is still here.';
+    if (window.headunit) headunit.toast('Could not reach YouTube', 'warn');
+  }
+
+  function clearUnavailable() {
+    const box = $('placeholder');
+    box.hidden = true;
+    box.querySelector('.placeholder-mark').textContent = '\u25b6';
+    box.querySelector('.placeholder-lede').textContent = 'Nothing playing';
+    box.querySelector('.placeholder-note').textContent =
+      'Paste a link, or pick something from your library.';
   }
 
   /**
-   * Check that YouTube can be reached, without touching the page's globals.
-   *
-   * Plyr loads the IFrame API itself and owns window.onYouTubeIframeAPIReady, so
-   * loading it here as well would mean two loaders fighting over one callback.
-   * A no-cors request answers the only question we need — is YouTube reachable
-   * — and an opaque response is a perfectly good yes.
+   * Always attempt. The player working is the only real evidence that the player
+   * works — a probe of some other URL is a guess, and a bare cross-origin fetch
+   * and an embedded iframe are different request types that browsers, blockers
+   * and filters treat differently. Guessing from one about the other reported a
+   * perfectly good player as unreachable.
    */
-  async function probeYouTube() {
-    try {
-      await fetch('https://www.youtube.com/iframe_api', {
-        mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(READY_TIMEOUT_MS),
-      });
-    } catch {
-      markUnavailable();
-    }
-  }
-
   function play(id) {
     if (!id) return;
-    if (unavailable) {
-      if (window.headunit) headunit.toast('YouTube is unreachable right now', 'warn');
-      return;
-    }
-    $('placeholder').hidden = true;
+    const attempt = ++attemptId;
+    clearUnavailable();
     ensurePlayer();
     player.source = { type: 'video', sources: [{ src: id, provider: 'youtube' }] };
     player.play();
+
+    // Only worth waiting on before the embed has ever come up; afterwards Plyr
+    // is reused and readiness is not in question. The attempt check stops a
+    // timer from an abandoned video failing the one that replaced it.
+    clearTimeout(readyTimer);
+    if (!ready) {
+      readyTimer = setTimeout(() => {
+        if (attempt === attemptId && !ready) markUnavailable();
+      }, READY_TIMEOUT_MS);
+    }
     // The title is not known the instant a source is set; Plyr's playing event
     // covers the normal case and this covers a video that never autoplays.
-    clearTimeout(readyTimer);
-    readyTimer = setTimeout(markUnavailable, READY_TIMEOUT_MS);
     setTimeout(readMeta, 1800);
   }
 
@@ -403,7 +410,6 @@
   renderLibrary();
   refreshSaveButton();
   showTab('library');
-  probeYouTube();
 
   if (window.headunit) {
     headunit.ready((hu) => {
