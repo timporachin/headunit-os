@@ -193,8 +193,22 @@
     el.sceneHint.classList.remove('hidden');
   }
 
+  /* A wave out from the truck on every tap. The node removes itself when the
+   * animation ends, so hammering the hotspot cannot pile up elements. */
+  function ripple() {
+    const wave = document.createElement('span');
+    wave.className = 'ripple';
+    wave.addEventListener('animationend', () => wave.remove(), { once: true });
+    // Behind the menu items, in front of the photograph.
+    el.truckHotspot.parentElement.insertBefore(wave, el.truckHotspot);
+    // A safety net: if the animation never fires an end event — reduced motion
+    // stills it — the node still goes rather than lingering forever.
+    setTimeout(() => wave.remove(), 1500);
+  }
+
   el.truckHotspot.addEventListener('click', (event) => {
     event.stopPropagation();
+    ripple();
     if (el.radialMenu.classList.contains('open')) closeMenu();
     else openMenu();
   });

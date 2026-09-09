@@ -14,6 +14,8 @@ import { stat } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 
+const IS_WINDOWS = process.platform === 'win32';
+
 const FIRST_PORT = 4200;
 const LOG_LINES = 200;
 
@@ -165,13 +167,22 @@ export async function start(app) {
         const proc = spawn(app.start, {
           cwd: app.cwd,
           shell: true,
-          // shell:true means the child is `sh -c "<start>"`, and the real server
-          // is ITS child. Killing the shell alone orphans that server: it keeps
-          // running, keeps its port, and the next start silently lands on a
-          // different port while requests still reach the stale process.
-          // detached makes the child a process-group leader so the whole group
-          // can be signalled together — see stop().
-          detached: true,
+          /* shell:true means the child is a shell wrapper and the real server is
+           * ITS child, so killing the wrapper alone orphans the server — it keeps
+           * running and keeps its port. How you reach the whole tree is entirely
+           * platform-specific, and getting that wrong is what this now avoids:
+           *
+           *   POSIX  — detached makes the child a process-group leader, so the
+           *            group can be signalled at once. See killTree().
+           *   Windows — has no POSIX process groups. There `detached` means
+           *            something unrelated: the child gets its own console
+           *            WINDOW. Setting it there produced a stray black window
+           *            and no tree kill at all, so the orphan survived and a
+           *            second Vite started against the same dependency cache.
+           */
+          detached: !IS_WINDOWS,
+          // Never surface a console window for an app the shell is supervising.
+          windowsHide: true,
           env: {
             ...process.env,
             HEADUNIT_SHELL_ORIGIN: SHELL_ORIGIN,
@@ -206,14 +217,30 @@ export async function start(app) {
   return instance.launching;
 }
 
-/** Signal the whole process group, so a shell wrapper cannot outlive its child. */
+/**
+ * End the app and everything it started, whatever the platform.
+ *
+ * This used to signal the process group and treat a thrown error as "no group,
+ * fall back to killing the wrapper". On Windows that throw is guaranteed —
+ * there are no process groups — so the fallback ran every time and looked like
+ * it was working while it silently orphaned the server. Choosing the branch on
+ * purpose, rather than discovering it from an exception, is the whole fix.
+ */
 function killTree(proc) {
   if (!proc?.pid) return;
+
+  if (IS_WINDOWS) {
+    // /T takes the whole child tree, /F does not ask nicely. Fire and forget:
+    // the app is going away either way and nothing waits on the result.
+    spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' })
+      .on('error', () => { try { proc.kill(); } catch { /* already gone */ } });
+    return;
+  }
+
   try {
     process.kill(-proc.pid, 'SIGTERM');
   } catch {
-    // No group (already reaped, or a platform without them): fall back to the
-    // direct kill, which still beats leaving it running.
+    // Already reaped, or never became a group leader.
     try { proc.kill(); } catch { /* already gone */ }
   }
 }

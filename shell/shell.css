@@ -204,29 +204,62 @@
 }
 .scene-backdrop.open { opacity: 1; pointer-events: auto; }
 
-/* Sits on the truck. Invisible except for the ring that says it is tappable. */
+/*
+ * Sits on the truck. There is no button here — a solid dot pinned to a
+ * photograph reads as a control stuck on top of the picture. What is left is a
+ * soft wave that breathes slowly, which is enough to say "something is here"
+ * without pretending to be a widget, and a stronger ripple on tap.
+ *
+ * The target is larger than the wave it carries, because an invisible control
+ * has to be forgiving to hit.
+ */
 .truck-hotspot {
   position: absolute; left: 50%; top: 65%; z-index: 3;
-  width: var(--touch); height: var(--touch);
+  width: 96px; height: 96px;
   transform: translate(-50%, -50%);
   padding: 0; border: 0; border-radius: 50%;
   background: transparent;
 }
 .truck-hotspot::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.75);
-  animation: pulse-ring 2.2s ease-out infinite;
+  content: ""; position: absolute; inset: -18%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(255, 255, 255, 0.09) 42%,
+    transparent 68%);
+  animation: breathe-wave 6s ease-in-out infinite;
 }
-.truck-hotspot::after {
-  content: ""; position: absolute; inset: 22%; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.55);
+/* Once the menu is out, the wave has said what it had to say. */
+.truck-hotspot.open::before { animation: none; opacity: 0; transition: opacity var(--speed) var(--ease); }
+
+@keyframes breathe-wave {
+  0%, 100% { transform: scale(0.82); opacity: 0.45; }
+  50%      { transform: scale(1.12); opacity: 0.9; }
 }
-.truck-hotspot.open::before { animation: none; opacity: 0; }
-@keyframes pulse-ring {
-  0%   { transform: scale(0.55); opacity: 0.9; }
-  70%  { transform: scale(1.9); opacity: 0; }
-  100% { opacity: 0; }
+
+/*
+ * The tap ripple. Two rings on a stagger, each squashed vertically as it grows
+ * so it reads as a wave crossing a surface rather than a flat expanding circle.
+ * Created on tap and removed on animationend, so repeated taps leave nothing
+ * behind in the DOM.
+ */
+.ripple {
+  position: absolute; left: 50%; top: 65%; z-index: 3;
+  width: 96px; height: 96px; margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ripple::before, .ripple::after {
+  content: ""; position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  animation: ripple-out 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.ripple::after { animation-delay: 160ms; border-color: rgba(255, 255, 255, 0.28); }
+
+@keyframes ripple-out {
+  from { transform: scale(0.5) scaleY(0.94); opacity: 0.75; }
+  to   { transform: scale(3.1) scaleY(0.82); opacity: 0; }
 }
 
 .scene-hint {
@@ -382,7 +415,10 @@
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-  .orb, .tile, .hero, .toast, .dot, .scene-bg, .truck-hotspot::before { animation: none !important; }
+  .orb, .tile, .hero, .toast, .dot, .scene-bg,
+  .truck-hotspot::before, .ripple::before, .ripple::after { animation: none !important; }
+  /* With the ripple stilled it would otherwise sit on screen forever. */
+  .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
   .hero-rail-fill { transition: none; }
   .tile-open::after { display: none; }
