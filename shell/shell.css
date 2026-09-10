@@ -112,6 +112,9 @@
   background: transparent; border-color: var(--glass-edge);
   color: var(--ink-dim); font-size: var(--text);
 }
+/* The theme chip is a text glyph and the gear is an SVG; without this the two
+   sit side by side at visibly different sizes. */
+.status-chip svg { width: 22px; height: 22px; }
 .status-chip:hover {
   color: var(--accent); border-color: var(--accent);
   box-shadow: 0 0 22px -6px var(--bloom);
@@ -391,6 +394,162 @@
 }
 .failure-actions { display: flex; gap: var(--gap-3); }
 
+/* ── Settings ───────────────────────────────────────────────── */
+/* A shell view, so it lives in the stage next to .boot and .failure and is
+   switched by the same show() call. It is the one screen here allowed to
+   scroll: it is read parked, not while driving. */
+.settings { overflow-y: auto; background: var(--bg-sunken); }
+.settings-inner { max-width: 1180px; margin: 0 auto; padding: var(--gap-5) var(--gap-5) var(--gap-8); }
+
+.settings-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--gap-4); margin-bottom: var(--gap-5);
+}
+.settings-head h2 { margin: 0; font-size: var(--text-2xl); letter-spacing: 0.01em; }
+
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-4); }
+.card {
+  background: var(--glass);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-5);
+  animation: rise var(--speed) var(--ease);
+}
+.card-wide { grid-column: 1 / -1; }
+.card h3 {
+  margin: 0 0 var(--gap-4); font-size: var(--text-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-faint);
+}
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-3); }
+.card-head h3 { margin-bottom: var(--gap-4); }
+
+.field { margin-bottom: var(--gap-5); }
+.field:last-child { margin-bottom: 0; }
+.field > label { display: block; margin-bottom: var(--gap-2); font-size: var(--text-sm); color: var(--ink-dim); }
+.field.row { display: flex; gap: var(--gap-3); }
+.field.row > * { flex: 1; min-width: 0; }
+.field-value { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hint { margin: var(--gap-2) 0 0; font-size: var(--text-xs); line-height: 1.45; color: var(--ink-faint); }
+.hint:empty { display: none; }
+
+.settings input[type="text"] {
+  width: 100%; min-height: var(--touch-min); padding: 0 var(--gap-3);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); color: var(--ink);
+  /* The only place in the OS where typing is expected, so give the text back. */
+  -webkit-user-select: text; user-select: text;
+}
+
+/* Segmented control: three targets that each clear --touch-min on their own,
+   rather than a native <select> whose popup lands wherever the OS decides. */
+.segmented {
+  display: flex; gap: var(--gap-1); padding: var(--gap-1);
+  background: var(--bg-sunken); border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.segmented button {
+  flex: 1; min-width: 0; padding: 0 var(--gap-2);
+  border: 0; background: transparent; color: var(--ink-dim);
+  border-radius: calc(var(--radius) - 5px); font-size: var(--text-sm);
+}
+.segmented button:hover { background: var(--surface-hover); color: var(--ink); }
+.segmented button[aria-checked="true"] {
+  background: var(--accent); color: var(--accent-ink); font-weight: 600;
+}
+
+/* Range: the native track is a few pixels tall, which is unhittable in a moving
+   vehicle. The input keeps a full --touch-min row and the thumb is drawn big. */
+.settings input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: var(--touch-min); margin: 0;
+  background: transparent; cursor: pointer;
+}
+.settings input[type="range"]::-webkit-slider-runnable-track {
+  height: 10px; border-radius: var(--radius-pill);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+}
+.settings input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 34px; height: 34px; margin-top: -13px;
+  border-radius: 50%; background: var(--accent);
+  border: 3px solid var(--bg-raised); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.settings input[type="range"]::-moz-range-track {
+  height: 10px; border-radius: var(--radius-pill);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+}
+.settings input[type="range"]::-moz-range-thumb {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--bg-raised);
+}
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-4); }
+.toggle-text { min-width: 0; }
+.toggle-text label { display: block; margin-bottom: 0; font-size: var(--text-sm); color: var(--ink-dim); }
+
+.switch {
+  position: relative; flex: none;
+  width: 76px; height: var(--touch-min); padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+}
+.switch > span {
+  position: absolute; top: 50%; left: 5px; transform: translateY(-50%);
+  width: 34px; height: 34px; border-radius: 50%; background: var(--ink-faint);
+  transition: transform var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+.switch[aria-checked="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.switch[aria-checked="true"] > span { transform: translateY(-50%) translateX(31px); background: var(--accent); }
+
+button.ghost {
+  min-height: var(--touch-min); padding: 0 var(--gap-4);
+  background: transparent; border-color: var(--glass-edge);
+  color: var(--ink-dim); font-size: var(--text-sm);
+}
+button.ghost:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+
+.app-rows { display: flex; flex-direction: column; gap: var(--gap-2); }
+.app-row {
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.app-row .aicon { flex: none; display: grid; place-items: center; width: 30px; color: var(--ink-dim); }
+.app-row .aicon svg { width: 24px; height: 24px; }
+.app-row .aicon .glyph { font-size: 22px; line-height: 1; }
+.app-row .aname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-row .astate {
+  flex: none; font-size: var(--text-xs); text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--ink-faint);
+}
+.app-row .astate[data-state="ready"]    { color: var(--ok); }
+.app-row .astate[data-state="starting"] { color: var(--warn); }
+.app-row .astate[data-state="failed"]   { color: var(--alert); }
+.app-row button { min-height: var(--touch-min); padding: 0 var(--gap-3); font-size: var(--text-sm); }
+.app-empty { color: var(--ink-faint); font-size: var(--text-sm); }
+
+.settings-log {
+  margin: var(--gap-4) 0 0; max-height: 240px; overflow: auto;
+  padding: var(--gap-3); background: var(--bg-sunken);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--ink-dim); white-space: pre-wrap; overflow-wrap: anywhere;
+  -webkit-user-select: text; user-select: text;
+}
+
+/* ── The dimmer ─────────────────────────────────────────────── */
+/* Fixed and above every layer INCLUDING an app's iframe, because an iframe is
+   an element and stacks like one — which is the only reason this works while an
+   app owns the screen, and that is exactly when a driver wants it. Never
+   interactive: it darkens the panel without swallowing a tap. */
+.dimmer {
+  position: fixed; inset: 0; z-index: 60;
+  pointer-events: none; background: #000; opacity: 0;
+  transition: opacity var(--speed) var(--ease);
+}
+
 /* ── Toasts ─────────────────────────────────────────────────── */
 .toasts {
   position: fixed; left: 50%; bottom: var(--gap-5); transform: translateX(-50%);
@@ -415,23 +574,18 @@
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-  .orb, .tile, .hero, .toast, .dot, .scene-bg,
+  .orb, .toast, .card, .scene-bg,
   .truck-hotspot::before, .ripple::before, .ripple::after { animation: none !important; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
-  .hero-rail-fill { transition: none; }
-  .tile-open::after { display: none; }
+  .switch > span, .dimmer { transition: none; }
 }
 
-/* Below this the two halves stop fitting side by side; stack them and let the
-   hero shrink to a banner rather than squeezing the grid to one column. */
+/* Below this the settings cards stop fitting side by side. The launcher needs
+   nothing here: it is a photograph with an arc drawn on it, and both already
+   scale with the viewport. */
 @media (max-width: 1024px) {
   :root { --rail-width: 76px; }
-  .rail-item .label { display: none; }
-  .launcher { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
-  .hero { padding: var(--gap-5); }
-  .hero-time { font-size: 54px; }
-  .hero-stats { margin-top: var(--gap-4); grid-template-columns: repeat(3, 1fr); }
-  .hero-stats > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .settings-grid { grid-template-columns: 1fr; }
 }

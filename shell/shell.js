@@ -20,11 +20,16 @@
     failure: $('failure'), failName: $('failName'), failWhy: $('failWhy'), failLog: $('failLog'),
     statusTitle: $('statusTitle'), statusState: $('statusState'),
     clock: $('clock'), themeBtn: $('themeBtn'), themeGlyph: $('themeGlyph'),
-    toasts: $('toasts'),
+    toasts: $('toasts'), dimmer: $('dimmer'),
+    settings: $('settings'), settingsBtn: $('settingsBtn'), settingsDone: $('settingsDone'),
+    themeMode: $('themeMode'), themeHint: $('themeHint'),
+    brightness: $('brightness'), brightnessValue: $('brightnessValue'),
+    speedUnit: $('speedUnit'), tempUnit: $('tempUnit'),
+    vehicleName: $('vehicleName'), keepAwake: $('keepAwake'), wakeHint: $('wakeHint'),
+    lat: $('lat'), lon: $('lon'), useGps: $('useGps'),
+    clearLocation: $('clearLocation'), locationHint: $('locationHint'),
+    appRows: $('appRows'), settingsLog: $('settingsLog'), reloadRegistry: $('reloadRegistry'),
   };
-
-  /* The vehicle's name, shown in the status bar whenever no app is open. */
-  const VEHICLE = 'F-250';
 
   /* The single source of truth for vehicle telemetry. Nothing is wired to a
    * real vehicle yet, so this says so rather than reporting a plausible zero:
@@ -35,18 +40,213 @@
   const opened = new Map();
   let apps = [];
   let currentId = null;
-  let theme = localStorage.getItem('headunit.theme') || 'night';
+
+  /* ── Settings ───────────────────────────────────────────── */
+  /*
+   * Preferences the shell owns, because every one of them changes the shell
+   * itself: the name in the status bar, the dimmer that has to paint over an
+   * app's frame, the units the SDK reports. None of that is reachable from
+   * inside an app's own origin, which is why settings is chrome and not an app.
+   */
+  const SETTINGS_KEY = 'headunit.settings';
+  const LEGACY_THEME_KEY = 'headunit.theme';
+  const THEME_MODES = ['night', 'day', 'auto'];
+  const SPEED_UNITS = ['mph', 'km/h'];
+  const TEMP_UNITS = ['F', 'C'];
+  const MIN_BRIGHTNESS = 25;
+  const MAX_NAME = 24;
+  const NO_LOCATION_HINT = 'Used for sunrise and sunset, and by the weather screen.';
+
+  const DEFAULTS = {
+    themeMode: 'night',
+    brightness: 100,
+    units: { speed: 'mph', temp: 'F' },
+    vehicleName: 'F-250',
+    keepAwake: false,
+    location: null,
+  };
+
+  const oneOf = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+  /** Read stored settings. Whatever is in storage is whatever was written there
+   *  last — by an older build, or by hand — so every field is validated. */
+  function loadSettings() {
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+    catch { /* absent or corrupt; the defaults below stand in */ }
+
+    let themeMode = oneOf(stored.themeMode, THEME_MODES, null);
+    if (!themeMode) {
+      // The theme used to live under a key of its own. Carry it across once, so
+      // a head unit already set to day does not silently revert to night.
+      themeMode = oneOf(localStorage.getItem(LEGACY_THEME_KEY), THEME_MODES, DEFAULTS.themeMode);
+    }
+
+    const loc = stored.location;
+    const usableLoc = loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon)
+      && Math.abs(loc.lat) <= 90 && Math.abs(loc.lon) <= 180;
+
+    return {
+      themeMode,
+      brightness: clamp(Number(stored.brightness) || DEFAULTS.brightness, MIN_BRIGHTNESS, 100),
+      units: {
+        speed: oneOf(stored.units?.speed, SPEED_UNITS, DEFAULTS.units.speed),
+        temp: oneOf(stored.units?.temp, TEMP_UNITS, DEFAULTS.units.temp),
+      },
+      vehicleName: String(stored.vehicleName ?? '').trim().slice(0, MAX_NAME) || DEFAULTS.vehicleName,
+      keepAwake: stored.keepAwake === true,
+      location: usableLoc ? { lat: loc.lat, lon: loc.lon } : null,
+    };
+  }
+
+  let settings = loadSettings();
+
+  /** Persist, re-apply everything a setting drives, and tell the open apps. */
+  function commit() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+    catch { toast('Could not save settings: this browser is refusing storage.', 'warn'); }
+    applyBrightness();
+    applyResolvedTheme();
+    vehicle.unit = settings.units.speed;
+    if (!currentId) setStatus(settings.vehicleName, null);
+    broadcastSettings();
+    renderSettings();
+  }
+
+  /* What an app is allowed to see. Brightness and the wake lock are the shell's
+   * own business and an app has no use for either, so they do not travel. */
+  function publicSettings() {
+    return {
+      units: { ...settings.units },
+      vehicleName: settings.vehicleName,
+      location: settings.location ? { ...settings.location } : null,
+    };
+  }
+
+  function broadcastSettings() {
+    for (const { frame } of opened.values()) send(frame, 'settings', publicSettings());
+  }
 
   /* ── Theme ──────────────────────────────────────────────── */
+  /* `settings.themeMode` is the preference; `theme` is what is actually
+   * painted. Under "auto" the second is derived from the sun, so it is never
+   * stored — storing it would freeze a decision that has to keep moving. */
+  let theme = 'night';
+
   function applyTheme(next) {
+    const changed = next !== theme;
     theme = next;
     document.documentElement.setAttribute('data-theme', theme);
     el.themeGlyph.textContent = theme === 'night' ? '☾' : '☀';
-    localStorage.setItem('headunit.theme', theme);
     // Apps that loaded the SDK follow the shell rather than guessing.
-    for (const { frame } of opened.values()) send(frame, 'theme', { theme });
+    if (changed) for (const { frame } of opened.values()) send(frame, 'theme', { theme });
   }
-  el.themeBtn.addEventListener('click', () => applyTheme(theme === 'night' ? 'day' : 'night'));
+
+  /*
+   * Sunrise and sunset, by the NOAA solar equations.
+   *
+   * Arithmetic only, deliberately: a truck parked in a canyon with no signal
+   * still has to know when it gets dark. `lon` is east-positive, as everything
+   * else in this OS uses it. Returns null above the polar circles on the days
+   * the sun never crosses the horizon — there is no time to report there, and
+   * inventing one would hold the screen in the wrong mode for a month.
+   */
+  function sunTimes(date, lat, lon) {
+    const rad = Math.PI / 180;
+    const lw = -lon;
+    const jdate = date.getTime() / 86400000 + 2440587.5;
+    const n = Math.round(jdate - 2451545.0 - 0.0009 - lw / 360);
+    const jStar = n + 0.0009 + lw / 360;
+    const M = (357.5291 + 0.98560028 * jStar) % 360;
+    const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+    const lambda = (M + C + 180 + 102.9372) % 360;
+    const jTransit = 2451545.0 + jStar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad);
+    const decl = Math.asin(Math.sin(lambda * rad) * Math.sin(23.44 * rad));
+    // -0.833° rather than 0: the sun's own radius, plus atmospheric refraction.
+    const cosW = (Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(decl))
+               / (Math.cos(lat * rad) * Math.cos(decl));
+    if (cosW < -1 || cosW > 1) return null;
+    const w = Math.acos(cosW) / rad;
+    const toDate = (j) => new Date((j - 2440587.5) * 86400000);
+    return { sunrise: toDate(jTransit - w / 360), sunset: toDate(jTransit + w / 360) };
+  }
+
+  const fmtTime = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  /** The theme to paint right now, and the reason, for the settings screen. */
+  function resolveTheme(now = new Date()) {
+    if (settings.themeMode !== 'auto') return { theme: settings.themeMode, why: '' };
+
+    if (settings.location) {
+      const t = sunTimes(now, settings.location.lat, settings.location.lon);
+      if (!t) {
+        return { theme: 'night', why: 'The sun neither rises nor sets at this latitude today, so this holds night.' };
+      }
+      const daylight = now >= t.sunrise && now < t.sunset;
+      return { theme: daylight ? 'day' : 'night', why: `Sunrise ${fmtTime(t.sunrise)}, sunset ${fmtTime(t.sunset)}.` };
+    }
+
+    const hour = now.getHours();
+    return {
+      theme: hour >= 7 && hour < 19 ? 'day' : 'night',
+      why: 'No home location set, so this falls back to a flat 07:00–19:00 rather than guessing where the truck is.',
+    };
+  }
+
+  function applyResolvedTheme() {
+    const { theme: next, why } = resolveTheme();
+    applyTheme(next);
+    el.themeHint.textContent = settings.themeMode === 'auto' ? why : '';
+  }
+
+  // Auto has to keep up with the clock, not only with taps.
+  setInterval(() => { if (settings.themeMode === 'auto') applyResolvedTheme(); }, 60_000);
+
+  el.themeBtn.addEventListener('click', () => {
+    // The status-bar chip names a theme outright, which also steps out of auto
+    // rather than being quietly overruled by it a minute later.
+    settings.themeMode = theme === 'night' ? 'day' : 'night';
+    commit();
+  });
+
+  /* ── Brightness ─────────────────────────────────────────── */
+  /* 100 is clear glass, 25 is three-quarters black. The floor is also on the
+   * input's own min attribute, so the panel can never be dimmed to the point
+   * where you can no longer find the control that dimmed it. */
+  function applyBrightness() {
+    el.dimmer.style.opacity = String((100 - settings.brightness) / 100);
+  }
+
+  /* ── Keeping the screen awake ───────────────────────────── */
+  let wakeSentinel = null;
+
+  async function applyWakeLock() {
+    if (!('wakeLock' in navigator)) {
+      el.wakeHint.textContent = 'This browser has no screen wake lock, so the display follows the system power settings.';
+      return;
+    }
+    if (settings.keepAwake && !wakeSentinel) {
+      try {
+        wakeSentinel = await navigator.wakeLock.request('screen');
+        wakeSentinel.addEventListener('release', () => { wakeSentinel = null; }, { once: true });
+        el.wakeHint.textContent = 'Holding the screen on.';
+      } catch (err) {
+        el.wakeHint.textContent = `Could not hold the screen on: ${err.message}`;
+      }
+    } else if (!settings.keepAwake && wakeSentinel) {
+      try { await wakeSentinel.release(); } catch { /* already released */ }
+      wakeSentinel = null;
+      el.wakeHint.textContent = '';
+    }
+  }
+
+  /* The browser drops a wake lock whenever the page is hidden — a screensaver,
+   * the kiosk minimised, the machine locked — and never takes it back on its
+   * own. Ask again on every return to visible. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && settings.keepAwake) applyWakeLock();
+  });
 
   /* ── Clock ──────────────────────────────────────────────── */
   const tick = () => {
@@ -72,6 +272,7 @@
     el.frames.hidden = view !== 'app';
     el.boot.hidden = view !== 'boot';
     el.failure.hidden = view !== 'failure';
+    el.settings.hidden = view !== 'settings';
   }
 
   function setImmersive(on) {
@@ -81,7 +282,7 @@
   el.railTab.addEventListener('click', () => setImmersive(false));
 
   function setStatus(title, state) {
-    title = title || VEHICLE;
+    title = title || settings.vehicleName;
     el.statusTitle.textContent = title;
     el.statusState.textContent = state || '';
     el.statusState.hidden = !state;
@@ -172,6 +373,7 @@
 
     el.errors.hidden = errors.length === 0;
     el.errors.textContent = errors.join('\n');
+    renderAppRows();
   }
 
   /* ── The radial menu ────────────────────────────────────── */
@@ -213,7 +415,11 @@
     else openMenu();
   });
   el.sceneBackdrop.addEventListener('click', closeMenu);
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMenu(); });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (el.shell.dataset.view === 'settings') closeSettings();
+    else closeMenu();
+  });
 
   /** Stop an app and drop its frame, so reopening it is a clean boot. */
   async function stopApp(id) {
@@ -293,7 +499,7 @@
       send(entry.frame, 'visibility', { visible: false });
     }
     setImmersive(false);
-    setStatus(VEHICLE, null);
+    setStatus(settings.vehicleName, null);
     closeMenu();
     show('launcher');
     refresh();
@@ -346,6 +552,7 @@
           app: { id: entry.app.id, name: entry.app.name },
           theme,
           vehicle,
+          settings: publicSettings(),
         });
         break;
       case 'setTitle':
@@ -369,8 +576,224 @@
     }
   });
 
+  /* ── The settings screen ────────────────────────────────── */
+
+  function setSegment(group, value) {
+    for (const button of group.querySelectorAll('button[role="radio"]')) {
+      button.setAttribute('aria-checked', String(button.dataset.value === value));
+    }
+  }
+
+  function onSegment(group, apply) {
+    group.addEventListener('click', (event) => {
+      const button = event.target.closest('button[role="radio"]');
+      if (!button) return;
+      apply(button.dataset.value);
+      commit();
+    });
+  }
+
+  onSegment(el.themeMode, (value) => { settings.themeMode = value; });
+  onSegment(el.speedUnit, (value) => { settings.units.speed = value; });
+  onSegment(el.tempUnit, (value) => { settings.units.temp = value; });
+
+  /* Paint on every frame of the drag so the slider feels attached to the
+   * screen, but only write storage once it settles. */
+  el.brightness.addEventListener('input', () => {
+    settings.brightness = clamp(Number(el.brightness.value), MIN_BRIGHTNESS, 100);
+    el.brightnessValue.textContent = `${settings.brightness}%`;
+    applyBrightness();
+  });
+  el.brightness.addEventListener('change', commit);
+
+  el.vehicleName.addEventListener('input', () => {
+    settings.vehicleName = el.vehicleName.value.trim().slice(0, MAX_NAME) || DEFAULTS.vehicleName;
+    if (!currentId) setStatus(settings.vehicleName, null);
+  });
+  el.vehicleName.addEventListener('change', commit);
+
+  el.keepAwake.addEventListener('click', () => {
+    settings.keepAwake = el.keepAwake.getAttribute('aria-checked') !== 'true';
+    commit();
+    applyWakeLock();
+  });
+
+  /* Two free-text fields, so nothing here trusts them. An empty pair means "no
+   * home location", which is a real answer and not an error. */
+  function readLocationFields() {
+    const rawLat = el.lat.value.trim();
+    const rawLon = el.lon.value.trim();
+    if (!rawLat && !rawLon) return { ok: true, location: null };
+    const lat = Number(rawLat);
+    const lon = Number(rawLon);
+    if (!rawLat || !rawLon || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return { ok: false, why: 'Both fields need a number.' };
+    }
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      return { ok: false, why: 'Latitude runs to ±90 and longitude to ±180.' };
+    }
+    return { ok: true, location: { lat, lon } };
+  }
+
+  function commitLocation() {
+    const result = readLocationFields();
+    if (!result.ok) { el.locationHint.textContent = result.why; return; }
+    settings.location = result.location;
+    el.locationHint.textContent = settings.location
+      ? 'Saved. Sunrise and sunset are computed from here.'
+      : NO_LOCATION_HINT;
+    commit();
+  }
+  el.lat.addEventListener('change', commitLocation);
+  el.lon.addEventListener('change', commitLocation);
+
+  el.useGps.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      el.locationHint.textContent = 'This browser offers no geolocation, so type a position in instead.';
+      return;
+    }
+    el.locationHint.textContent = 'Asking the browser where we are…';
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        settings.location = {
+          lat: Number(coords.latitude.toFixed(4)),
+          lon: Number(coords.longitude.toFixed(4)),
+        };
+        el.locationHint.textContent = `Set from GPS, to about ${Math.round(coords.accuracy)} m.`;
+        commit();
+      },
+      (err) => { el.locationHint.textContent = `The browser would not give a position: ${err.message}`; },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
+  });
+
+  el.clearLocation.addEventListener('click', () => {
+    settings.location = null;
+    el.locationHint.textContent = NO_LOCATION_HINT;
+    commit();
+  });
+
+  /** Push the current settings back into the controls that display them. */
+  function renderSettings() {
+    setSegment(el.themeMode, settings.themeMode);
+    setSegment(el.speedUnit, settings.units.speed);
+    setSegment(el.tempUnit, settings.units.temp);
+    el.brightness.value = String(settings.brightness);
+    el.brightnessValue.textContent = `${settings.brightness}%`;
+    el.keepAwake.setAttribute('aria-checked', String(settings.keepAwake));
+    // Never overwrite a field somebody is part-way through typing into.
+    if (document.activeElement !== el.vehicleName) el.vehicleName.value = settings.vehicleName;
+    if (document.activeElement !== el.lat) el.lat.value = settings.location ? String(settings.location.lat) : '';
+    if (document.activeElement !== el.lon) el.lon.value = settings.location ? String(settings.location.lon) : '';
+  }
+
+  /*
+   * The apps panel. Everything here drives endpoints the control plane already
+   * has, so this adds no server surface — and it is the way to recover an app
+   * that is wedged, or to read why one failed, without hunting for its badge
+   * on the launcher's arc.
+   */
+  function renderAppRows() {
+    el.appRows.replaceChildren();
+    if (!apps.length) {
+      const empty = document.createElement('p');
+      empty.className = 'app-empty';
+      empty.textContent = 'No apps installed. Add one at apps/<id>/app.json, then reload the registry.';
+      el.appRows.append(empty);
+      return;
+    }
+
+    for (const app of apps) {
+      const busy = app.state === 'ready' || app.state === 'starting';
+      const row = document.createElement('div');
+      row.className = 'app-row';
+      row.innerHTML =
+        `<span class="aicon">${iconMarkup(app)}</span>`
+        + `<span class="aname">${escape(app.name)}</span>`
+        + `<span class="astate" data-state="${escape(app.state)}">${escape(app.state)}</span>`;
+
+      const act = document.createElement('button');
+      act.textContent = busy ? 'Stop' : 'Start';
+      act.addEventListener('click', async () => {
+        act.disabled = true;
+        act.textContent = busy ? 'Stopping…' : 'Starting…';
+        if (busy) {
+          await stopApp(app.id);
+        } else {
+          try {
+            const res = await fetch(`/api/apps/${encodeURIComponent(app.id)}/start`, { method: 'POST' });
+            const info = await res.json();
+            if (info.state === 'failed') toast(`${app.name}: ${info.error}`, 'alert');
+          } catch (err) {
+            toast(`Could not reach the control plane: ${err.message}`, 'alert');
+          }
+          await refresh();
+        }
+      });
+
+      const log = document.createElement('button');
+      log.className = 'ghost';
+      log.textContent = 'Log';
+      log.addEventListener('click', () => showLog(app));
+
+      row.append(act, log);
+      el.appRows.append(row);
+    }
+  }
+
+  async function showLog(app) {
+    el.settingsLog.hidden = false;
+    el.settingsLog.textContent = `Reading ${app.name}…`;
+    try {
+      const res = await fetch(`/api/apps/${encodeURIComponent(app.id)}/logs`);
+      const { lines } = await res.json();
+      el.settingsLog.textContent = lines.length
+        ? `${app.name}\n\n${lines.join('\n')}`
+        : `${app.name} has produced no output.`;
+    } catch (err) {
+      el.settingsLog.textContent = `Could not read ${app.name}: ${err.message}`;
+    }
+  }
+
+  el.reloadRegistry.addEventListener('click', async () => {
+    try {
+      await fetch('/api/reload', { method: 'POST' });
+      await refresh();
+      toast('Registry reloaded.');
+    } catch (err) {
+      toast(`Could not reload the registry: ${err.message}`, 'alert');
+    }
+  });
+
+  /* Settings is reached from the status bar and returns wherever it came from,
+   * so opening it from inside an app does not dump you back at the launcher. */
+  let viewBeforeSettings = 'launcher';
+
+  function openSettings() {
+    viewBeforeSettings = el.shell.dataset.view;
+    renderSettings();
+    show('settings');
+    setStatus('Settings', null);
+    refresh().catch(() => { /* the panel still works; the app list just stays stale */ });
+  }
+
+  function closeSettings() {
+    if (viewBeforeSettings === 'app' && currentId && opened.has(currentId)) foreground(currentId);
+    else home();
+  }
+
+  el.settingsBtn.addEventListener('click', () => {
+    if (el.shell.dataset.view === 'settings') closeSettings();
+    else openSettings();
+  });
+  el.settingsDone.addEventListener('click', closeSettings);
+
   /* ── Go ─────────────────────────────────────────────────── */
-  applyTheme(theme);
-  setStatus(VEHICLE, null);
+  applyBrightness();
+  applyResolvedTheme();
+  renderSettings();
+  applyWakeLock();
+  vehicle.unit = settings.units.speed;
+  setStatus(settings.vehicleName, null);
   refresh().catch((err) => toast(`Could not load the app registry: ${err.message}`, 'alert'));
 })();

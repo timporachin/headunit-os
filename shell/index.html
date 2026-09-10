@@ -31,6 +31,13 @@
       <span id="statusState" class="status-state" hidden></span>
     </div>
     <div class="status-right">
+      <button id="settingsBtn" class="status-chip" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.1"/>
+          <path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.11a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.11a1.6 1.6 0 0 0 1.46-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.11a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.11a1.6 1.6 0 0 0-1.47 1z"/>
+        </svg>
+      </button>
       <button id="themeBtn" class="status-chip" aria-label="Toggle day and night">
         <span id="themeGlyph">☾</span>
       </button>
@@ -96,9 +103,113 @@
       </div>
     </section>
 
+    <!--
+      Settings is chrome, not an app: it changes the shell itself — the name in
+      the status bar, the dimmer that has to sit over an app's frame, what the
+      SDK reports. So it lives here beside the clock rather than on the arc,
+      which is built from the app registry.
+    -->
+    <section class="settings" id="settings" hidden>
+      <div class="settings-inner">
+        <header class="settings-head">
+          <h2>Settings</h2>
+          <button id="settingsDone" class="primary">Done</button>
+        </header>
+
+        <div class="settings-grid">
+
+          <section class="card">
+            <h3>Display</h3>
+            <div class="field">
+              <label id="themeModeLabel">Theme</label>
+              <div class="segmented" id="themeMode" role="radiogroup" aria-labelledby="themeModeLabel">
+                <button type="button" role="radio" data-value="night" aria-checked="false">Night</button>
+                <button type="button" role="radio" data-value="day" aria-checked="false">Day</button>
+                <button type="button" role="radio" data-value="auto" aria-checked="false">Auto</button>
+              </div>
+              <p class="hint" id="themeHint"></p>
+            </div>
+            <div class="field">
+              <label for="brightness">Brightness <span class="field-value" id="brightnessValue">100%</span></label>
+              <input type="range" id="brightness" min="25" max="100" step="5" value="100">
+              <p class="hint">Dims the whole screen, apps included. It stops at 25% so the
+                head unit can never be turned all the way black.</p>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Units</h3>
+            <div class="field">
+              <label id="speedUnitLabel">Speed</label>
+              <div class="segmented" id="speedUnit" role="radiogroup" aria-labelledby="speedUnitLabel">
+                <button type="button" role="radio" data-value="mph" aria-checked="false">mph</button>
+                <button type="button" role="radio" data-value="km/h" aria-checked="false">km/h</button>
+              </div>
+            </div>
+            <div class="field">
+              <label id="tempUnitLabel">Temperature</label>
+              <div class="segmented" id="tempUnit" role="radiogroup" aria-labelledby="tempUnitLabel">
+                <button type="button" role="radio" data-value="F" aria-checked="false">&deg;F</button>
+                <button type="button" role="radio" data-value="C" aria-checked="false">&deg;C</button>
+              </div>
+            </div>
+            <p class="hint">Apps that load the head unit SDK follow this. One that does not
+              keeps its own units.</p>
+          </section>
+
+          <section class="card">
+            <h3>Vehicle</h3>
+            <div class="field">
+              <label for="vehicleName">Name in the status bar</label>
+              <input type="text" id="vehicleName" maxlength="24" placeholder="F-250" spellcheck="false">
+            </div>
+            <div class="field toggle-row">
+              <div class="toggle-text">
+                <label for="keepAwake">Keep the screen awake</label>
+                <p class="hint">Holds the display on while the head unit is running.</p>
+              </div>
+              <button type="button" id="keepAwake" class="switch" role="switch" aria-checked="false">
+                <span aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="hint" id="wakeHint"></p>
+          </section>
+
+          <section class="card">
+            <h3>Home location</h3>
+            <div class="field row">
+              <input type="text" id="lat" inputmode="decimal" placeholder="Latitude" spellcheck="false"
+                     aria-label="Latitude">
+              <input type="text" id="lon" inputmode="decimal" placeholder="Longitude" spellcheck="false"
+                     aria-label="Longitude">
+            </div>
+            <div class="field row">
+              <button type="button" id="useGps">Use GPS</button>
+              <button type="button" id="clearLocation">Clear</button>
+            </div>
+            <p class="hint" id="locationHint">Used for sunrise and sunset, and by the weather screen.</p>
+          </section>
+
+          <section class="card card-wide">
+            <div class="card-head">
+              <h3>Apps</h3>
+              <button type="button" id="reloadRegistry" class="ghost">Reload registry</button>
+            </div>
+            <div class="app-rows" id="appRows"></div>
+            <pre class="settings-log" id="settingsLog" hidden aria-label="App output"></pre>
+          </section>
+
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- The night dimmer. Above every layer including an app's iframe, and never
+       interactive, so it darkens the screen without eating a single tap. -->
+  <div id="dimmer" class="dimmer" aria-hidden="true"></div>
 </div>
 
 <script src="/shell.js"></script>

@@ -31,6 +31,11 @@
      * reports `source: "simulated"` here — check it before you trust a number
      * on a screen a driver is looking at. */
     vehicle: { speed: null, unit: 'mph', gear: null, parked: true, source: 'unavailable' },
+    /* Shell preferences the driver set: units, the vehicle's name, and the
+     * home location if one is saved. Read them instead of shipping your own
+     * unit toggle — there should be one place on the head unit to change this,
+     * and it is the settings screen. */
+    settings: { units: { speed: 'mph', temp: 'F' }, vehicleName: null, location: null },
   };
 
   function emit(event, detail) {
@@ -66,6 +71,7 @@
         state.app = msg.payload.app;
         applyTheme(msg.payload.theme);
         if (msg.payload.vehicle) state.vehicle = msg.payload.vehicle;
+        if (msg.payload.settings) state.settings = msg.payload.settings;
         handshake?.(headunit);
         emit('connect', headunit);
         break;
@@ -75,6 +81,10 @@
       case 'vehicle':
         state.vehicle = msg.payload;
         emit('vehicle', state.vehicle);
+        break;
+      case 'settings':
+        state.settings = msg.payload;
+        emit('settings', state.settings);
         break;
       case 'visibility':
         emit(msg.payload.visible ? 'foreground' : 'background', null);
@@ -96,6 +106,7 @@
     get connected() { return state.connected; },
     get theme() { return state.theme; },
     get vehicle() { return state.vehicle; },
+    get settings() { return state.settings; },
     get app() { return state.app; },
 
     /** Run `fn` once the shell has answered — or immediately when standalone. */
