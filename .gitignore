@@ -14,3 +14,7 @@ node_modules/
 
 # App dependencies are installed per app, not committed.
 apps/*/node_modules/
+
+# Credentials an app stores at runtime, written by the app itself at mode 600.
+# The Family app keeps a location-service token here; it must never be committed.
+apps/*/secrets.json
