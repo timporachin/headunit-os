@@ -104,6 +104,7 @@ works as a page, which is exactly what lets you drop in a repo you did not write
 headunit.ready((hu) => {
   hu.theme;              // 'night' | 'day', synced with the shell
   hu.vehicle;            // { speed, unit, gear, parked, source }
+  hu.settings;           // { units: { speed, temp }, vehicleName, location }
   hu.setTitle('Radar');  // the shell's status bar
   hu.setImmersive(true); // take the full screen
   hu.open('gods-eye');   // switch apps
@@ -111,8 +112,21 @@ headunit.ready((hu) => {
 });
 
 headunit.on('theme', (t) => { /* … */ });
+headunit.on('settings', (s) => { /* redraw in the new units */ });
 headunit.on('background', () => { /* pause expensive work */ });
 ```
+
+`hu.settings` is what the driver chose on the settings screen. Read it instead of
+shipping your own unit toggle: there should be one place on the head unit to
+change this, and it is Settings. `location` is the home position, which may be
+null. Brightness and the wake lock are the shell's own business and are not sent.
+
+**Settings is a shell screen, not an app.** It is reached from the gear beside the
+clock, and it is chrome rather than an app because every control on it changes the
+shell itself — the name in the status bar, a dimmer that has to paint over an app's
+frame, the units above. None of that is reachable from inside an app's own origin.
+It also carries a start/stop/log panel for every installed app, which is how you
+recover one that is wedged.
 
 **Vehicle data is not wired up yet.** No CAN bus, no GPS. The shell reports
 `source: "unavailable"` and `speed: null` rather than handing a page a plausible
