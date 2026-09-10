@@ -121,6 +121,44 @@
   font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink);
 }
 
+/* ── Status bar mini-player ─────────────────────────────────── */
+/* Sized so the title still gets the room it needs: it may shrink, and it never
+   grows past a third of the bar. */
+.status-media {
+  flex: 0 1 clamp(190px, 24vw, 340px);
+  min-width: 0;
+  display: flex; align-items: center; gap: var(--gap-2);
+}
+.status-media-open {
+  flex: 1; min-width: 0;
+  min-height: var(--touch-min); height: var(--touch-min);
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: 0 var(--gap-3) 0 var(--gap-1);
+  text-align: left;
+  background: transparent; border-color: transparent; border-radius: var(--radius-pill);
+}
+.status-media-open:hover { background: var(--surface-hover); }
+.status-media-art {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px; font-size: 17px; line-height: 1;
+  color: var(--accent);
+  background:
+    radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bg-sunken) 70%, transparent);
+  border: 1px solid var(--glass-edge);
+  background-size: cover; background-position: center;
+}
+/* Real artwork replaces the panel entirely — the note glyph would sit on top of it. */
+.status-media-art[data-art="image"] { color: transparent; border-color: var(--glass-edge); }
+.status-media-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.status-media-title,
+.status-media-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-media-title { font-size: var(--text-sm); font-weight: 600; }
+.status-media-artist { font-size: var(--text-xs); color: var(--ink-dim); }
+.status-media-artist:empty { display: none; }
+.status-chip[disabled] { opacity: 0.4; pointer-events: none; }
+
 /* ── Nav rail ───────────────────────────────────────────────── */
 .rail {
   grid-area: rail; position: relative; z-index: 2;
@@ -250,6 +288,54 @@
 .hero-date {
   margin: var(--gap-4) 0 0; color: var(--ink-dim);
   font-size: var(--text-lg); letter-spacing: 0.01em;
+}
+
+/* ── Now playing, on the home screen ────────────────────────── */
+.hero-media {
+  position: relative;
+  display: flex; align-items: center; gap: var(--gap-4);
+  width: 100%; margin: 0 0 var(--gap-5);
+  padding: var(--gap-3);
+  text-align: left;
+  border-radius: var(--radius);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--bg-sunken) 42%, transparent);
+}
+.hero-media:hover { background: color-mix(in srgb, var(--bg-sunken) 62%, transparent); }
+.hero-media-art {
+  width: 62px; height: 62px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 12px; font-size: 26px; line-height: 1;
+  color: var(--accent);
+  background:
+    radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bg-sunken) 70%, transparent);
+  border: 1px solid var(--glass-edge);
+  background-size: cover; background-position: center;
+}
+.hero-media-art[data-art="image"] { color: transparent; }
+.hero-media-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.hero-media-label {
+  font-size: 10px; color: var(--ink-faint);
+  text-transform: uppercase; letter-spacing: 0.18em;
+}
+.hero-media-title,
+.hero-media-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero-media-title { font-size: var(--text); font-weight: 600; }
+.hero-media-artist { font-size: var(--text-sm); color: var(--ink-dim); }
+.hero-media-artist:empty { display: none; }
+/* Same treatment as the hour rail above it: this panel has one visual language
+   for "how far along something is". */
+.hero-media-rail {
+  display: block; margin-top: var(--gap-2); height: 3px; border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  overflow: hidden;
+}
+.hero-media-fill {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, transparent, var(--accent));
+  box-shadow: 0 0 14px var(--bloom);
+  transition: width 1s linear;
 }
 
 .hero-stats { margin: 0; padding: 0; display: grid; gap: var(--gap-3); position: relative; }
@@ -427,6 +513,7 @@
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
   .orb, .tile, .hero, .toast, .dot { animation: none !important; }
+  .hero-media-fill { transition: none; }
   .spinner { animation-duration: 2.4s; }
   .hero-rail-fill { transition: none; }
   .tile-open::after { display: none; }
@@ -442,4 +529,6 @@
   .hero-time { font-size: 54px; }
   .hero-stats { margin-top: var(--gap-4); grid-template-columns: repeat(3, 1fr); }
   .hero-stats > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .status-media { flex: none; }
+  .status-media-open { display: none; }
 }

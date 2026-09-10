@@ -84,6 +84,67 @@ tiles. It runs keyless; add a Cesium ion token or Google Maps key in its own
 POWER UP panel for photoreal 3D, and note that ion's photoreal tier is licensed for
 personal, non-commercial use.
 
+## Music from a phone
+
+The head unit does not play your music — your phone does, over Bluetooth A2DP,
+the same as any car stereo. What the head unit does is *read* what is playing and
+put the controls somewhere you can reach without picking the phone up.
+
+Windows publishes a paired phone's track as a system media session (the one the
+volume flyout shows), and routes play/pause/next back out over AVRCP. That
+session is the only thing a browser-based shell can see, so it is what this reads:
+
+```
+iPhone --A2DP/AVRCP--> Windows media session
+                              |
+        server/media/windows-media.ps1   (polls it, 1 Hz, NDJSON on stdout)
+                              |
+        server/media.mjs -> /api/media/events  (SSE)
+                              |
+        the shell -> status bar, launcher panel, and every app via the SDK
+```
+
+It shows up in three places: a full-screen **Now Playing** app, a strip in the
+status bar so you can pause without leaving the map, and a panel on the launcher.
+All three read the same server-side state, so they cannot disagree.
+
+Pair the phone, play something, and it appears. To check it directly:
+
+```sh
+curl localhost:4100/api/media
+```
+
+| Variable | Meaning |
+| --- | --- |
+| `HEADUNIT_MEDIA` | `windows` (default on Windows), `demo` for a fake track while developing, `off` to disable. |
+| `HEADUNIT_MEDIA_ARTWORK` | `itunes` turns on album-art lookup. Off by default — see below. |
+
+**What Bluetooth actually gives you.** Less than you would hope, and the screens
+are built around that rather than pretending otherwise:
+
+- **Album art almost never arrives.** AVRCP's cover-art profile is rarely
+  negotiated, so what comes over is text. Now Playing falls back to a gradient
+  derived from the track itself — the same song always gets the same colour.
+  `HEADUNIT_MEDIA_ARTWORK=itunes` looks the sleeve up instead; it is off by
+  default because it means telling Apple what you are listening to, and a head
+  unit should not phone home about your music unless you asked it to.
+- **Position is often missing or frozen.** When there is no duration the progress
+  bar is hidden rather than parked at zero.
+- **Some controls are refused.** The phone advertises which of play/pause/next/
+  previous it will honour; the ones it will not are dimmed rather than left live.
+
+**If nothing shows up**, run the adapter on its own — that separates a PowerShell
+problem from a shell problem:
+
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File server/media/windows-media.ps1
+```
+
+It should print a line of JSON per change. It needs **Windows PowerShell 5.1**
+(`powershell.exe`), not PowerShell 7 (`pwsh.exe`): awaiting a WinRT call depends
+on an extension .NET Core dropped. `server/media.mjs` invokes the right one.
+Whatever it wrote last is also kept at `/api/media/logs`.
+
 ## Making a page feel like the OS
 
 Two optional files, both served from the shell's origin:
@@ -104,6 +165,8 @@ works as a page, which is exactly what lets you drop in a repo you did not write
 headunit.ready((hu) => {
   hu.theme;              // 'night' | 'day', synced with the shell
   hu.vehicle;            // { speed, unit, gear, parked, source }
+  hu.media;              // { state, title, artist, album, position, duration, … }
+  hu.mediaCommand('next');   // play | pause | playpause | next | previous
   hu.setTitle('Radar');  // the shell's status bar
   hu.setImmersive(true); // take the full screen
   hu.open('gods-eye');   // switch apps
@@ -111,6 +174,7 @@ headunit.ready((hu) => {
 });
 
 headunit.on('theme', (t) => { /* … */ });
+headunit.on('media', (m) => { /* the track changed, or was paused */ });
 headunit.on('background', () => { /* pause expensive work */ });
 ```
 
@@ -121,7 +185,7 @@ number it might put in front of a driver. Check `source` before you trust a valu
 ## Layout
 
 ```
-server/     shell server, app registry, process supervisor
+server/     shell server, app registry, process supervisor, media source
 shell/      the shell UI — status bar, nav rail, launcher, frame host
 sdk/        headunit.js, the opt-in app bridge
 design/     tokens.css, the design system

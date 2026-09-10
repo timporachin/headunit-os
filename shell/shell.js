@@ -23,12 +23,33 @@
     heroTime: $('heroTime'), heroMeridiem: $('heroMeridiem'),
     heroSeconds: $('heroSeconds'), heroRail: $('heroRail'),
     statApps: $('statApps'), statRunning: $('statRunning'), statVehicle: $('statVehicle'),
+    statusMedia: $('statusMedia'), statusMediaOpen: $('statusMediaOpen'),
+    statusMediaArt: $('statusMediaArt'), statusMediaTitle: $('statusMediaTitle'),
+    statusMediaArtist: $('statusMediaArtist'), statusMediaToggle: $('statusMediaToggle'),
+    statusMediaGlyph: $('statusMediaGlyph'),
+    heroMedia: $('heroMedia'), heroMediaArt: $('heroMediaArt'), heroMediaLabel: $('heroMediaLabel'),
+    heroMediaTitle: $('heroMediaTitle'), heroMediaArtist: $('heroMediaArtist'),
+    heroMediaRail: $('heroMediaRail'), heroMediaFill: $('heroMediaFill'),
   };
 
   /* The single source of truth for vehicle telemetry. Nothing is wired to a
    * real vehicle yet, so this says so rather than reporting a plausible zero:
    * a speed on a driver's screen has to be a measurement or an admission. */
   const vehicle = { speed: null, unit: 'mph', gear: null, parked: true, source: 'unavailable' };
+
+  /* What is playing, as last reported by the server's media source. Same rule
+   * as the vehicle block above: with no source this stays empty rather than
+   * showing a track paused at 0:00. */
+  const IDLE_MEDIA = {
+    source: 'unavailable', state: 'none',
+    title: null, artist: null, album: null,
+    position: null, duration: null, positionAt: null,
+    canPlay: false, canPause: false, canNext: false, canPrevious: false,
+    sourceApp: null, trackKey: null, artUrl: null,
+  };
+  let media = { ...IDLE_MEDIA };
+
+  const NOW_PLAYING_ID = 'nowplaying';
 
   /** id -> { app, frame, connected } for every app that has been opened. */
   const opened = new Map();
@@ -65,9 +86,118 @@
     // Progress through the hour, so the panel has one thing visibly moving.
     const through = (now.getMinutes() * 60 + now.getSeconds()) / 3600;
     el.heroRail.style.width = `${(through * 100).toFixed(2)}%`;
+    paintProgress();
   };
   tick();
   setInterval(tick, 1000);
+
+  /* ── Media ──────────────────────────────────────────────── */
+  /* The server owns this state, not the Now Playing app: two of the three
+   * surfaces showing it are shell chrome, and the shell cannot read into a
+   * cross-origin frame. Apps receive it over the bridge like everything else. */
+
+  /** Playing, paused, or mid-skip — anything with a track worth showing. */
+  const hasTrack = () => ['playing', 'paused', 'changing'].includes(media.state);
+  const isPlaying = () => media.state === 'playing' || media.state === 'changing';
+
+  /**
+   * Where the playhead is now, interpolated from the last reading.
+   *
+   * The source reports position once every couple of seconds; the bar has to
+   * move in between, so we advance it ourselves from the moment the reading was
+   * taken. Null when the track has no length — Bluetooth frequently reports
+   * none, and a progress bar that never moves is worse than no progress bar.
+   */
+  function mediaProgress() {
+    if (!media.duration || media.position == null) return null;
+    const drift = isPlaying() && media.positionAt ? Date.now() - media.positionAt : 0;
+    return Math.min(1, Math.max(0, (media.position + drift) / media.duration));
+  }
+
+  function paintProgress() {
+    const progress = mediaProgress();
+    el.heroMediaRail.hidden = progress === null;
+    if (progress !== null) el.heroMediaFill.style.width = `${(progress * 100).toFixed(2)}%`;
+  }
+
+  function paintArt(node) {
+    node.dataset.art = media.artUrl ? 'image' : 'none';
+    node.style.backgroundImage = media.artUrl ? `url("${media.artUrl}")` : '';
+  }
+
+  function renderMedia() {
+    const showing = hasTrack();
+    // Inside Now Playing the strip would only repeat the screen behind it.
+    el.statusMedia.hidden = !showing || currentId === NOW_PLAYING_ID;
+    el.heroMedia.hidden = !showing;
+    if (!showing) return;
+
+    // A session can exist without naming its track; say so rather than blank.
+    const title = media.title || 'Unknown track';
+    const artist = media.artist || '';
+    el.statusMediaTitle.textContent = title;
+    el.statusMediaArtist.textContent = artist;
+    el.heroMediaTitle.textContent = title;
+    el.heroMediaArtist.textContent = artist;
+    // A demo track must never be mistaken for the phone.
+    el.heroMediaLabel.textContent = media.source === 'demo' ? 'Now playing · demo' : 'Now playing';
+
+    el.statusMediaGlyph.textContent = isPlaying() ? '\u23F8' : '\u25B6';
+    el.statusMediaToggle.disabled = !(media.canPlay || media.canPause);
+    el.statusMediaToggle.setAttribute('aria-label', isPlaying() ? 'Pause' : 'Play');
+
+    paintArt(el.statusMediaArt);
+    paintArt(el.heroMediaArt);
+    paintProgress();
+  }
+
+  /** Frames are cross-origin, so the artwork path has to leave here absolute. */
+  const mediaForFrames = () => ({
+    ...media,
+    artUrl: media.artUrl ? new URL(media.artUrl, location.origin).href : null,
+  });
+
+  function applyMedia(next) {
+    media = { ...IDLE_MEDIA, ...next };
+    renderMedia();
+    const payload = mediaForFrames();
+    for (const { frame } of opened.values()) send(frame, 'media', payload);
+  }
+
+  async function mediaCommand(command) {
+    try {
+      const res = await fetch('/api/media/command', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ command }),
+      });
+      const body = await res.json();
+      if (!res.ok) return toast(body.error || 'That control did nothing', 'warn');
+      applyMedia(body);
+    } catch (err) {
+      toast(`Media control failed: ${err.message}`, 'alert');
+    }
+  }
+
+  function openNowPlaying() {
+    if (!apps.some((a) => a.id === NOW_PLAYING_ID)) {
+      return toast('The Now Playing app is not installed', 'warn');
+    }
+    open(NOW_PLAYING_ID);
+  }
+
+  el.statusMediaToggle.addEventListener('click', () => mediaCommand('playpause'));
+  el.statusMediaOpen.addEventListener('click', openNowPlaying);
+  el.heroMedia.addEventListener('click', openNowPlaying);
+
+  /* EventSource reconnects on its own, which is exactly the retry policy a head
+   * unit wants: the shell outlives every restart of the thing feeding it. */
+  function connectMedia() {
+    const stream = new EventSource('/api/media/events');
+    stream.addEventListener('message', (event) => {
+      try { applyMedia(JSON.parse(event.data)); } catch { /* a torn frame; the next one is whole */ }
+    });
+  }
 
   /* ── Toasts ─────────────────────────────────────────────── */
   function toast(message, tone = 'info') {
@@ -240,6 +370,7 @@
     setImmersive(app.immersive);
     show('app');
     render();
+    renderMedia();
   }
 
   function home() {
@@ -251,6 +382,7 @@
     setImmersive(false);
     setStatus('Home', null);
     show('launcher');
+    renderMedia();
     refresh();
   }
   $('homeBtn').addEventListener('click', home);
@@ -301,6 +433,7 @@
           app: { id: entry.app.id, name: entry.app.name },
           theme,
           vehicle,
+          media: mediaForFrames(),
         });
         break;
       case 'setTitle':
@@ -315,6 +448,9 @@
       case 'home':
         home();
         break;
+      case 'mediaCommand':
+        mediaCommand(String(msg.payload?.command || ''));
+        break;
       case 'toast':
         toast(String(msg.payload?.message || ''), msg.payload?.tone);
         break;
@@ -327,5 +463,6 @@
   /* ── Go ─────────────────────────────────────────────────── */
   applyTheme(theme);
   setStatus('Home', null);
+  connectMedia();
   refresh().catch((err) => toast(`Could not load the app registry: ${err.message}`, 'alert'));
 })();

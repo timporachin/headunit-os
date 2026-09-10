@@ -1,0 +1,8 @@
+{
+  "id": "nowplaying",
+  "name": "Now Playing",
+  "icon": "🎵",
+  "description": "What the phone is playing, and the controls to change it.",
+  "kind": "static",
+  "dir": "."
+}
