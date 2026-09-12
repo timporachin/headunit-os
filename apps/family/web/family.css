@@ -1,0 +1,197 @@
+/*
+ * Family.
+ *
+ * The same two-column shape the weather screen uses: who and where on the left,
+ * the map filling everything else.
+ */
+
+body { height: 100%; overflow: hidden; }
+
+.fam { display: flex; flex-direction: column; height: 100vh; }
+.fam-body { flex: 1; display: flex; min-height: 0; }
+
+/* ── The demo warning ───────────────────────────────────────── */
+.synthetic {
+  flex: none; padding: var(--gap-3) var(--gap-5);
+  background: color-mix(in srgb, var(--warn) 22%, var(--bg));
+  border-bottom: 1px solid var(--warn);
+  font-size: var(--text-sm); color: var(--ink);
+}
+
+/* ── People ─────────────────────────────────────────────────── */
+.side {
+  flex: none; width: 400px; min-width: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--line); background: var(--bg-sunken);
+}
+.side-head {
+  flex: none; display: flex; gap: var(--gap-2); align-items: center;
+  padding: var(--gap-3) var(--gap-4); border-bottom: 1px solid var(--line);
+}
+.circle {
+  flex: 1; min-width: 0; min-height: var(--touch-min);
+  padding: 0 var(--gap-3);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+.people { flex: 1; overflow-y: auto; padding: var(--gap-3); display: flex; flex-direction: column; gap: var(--gap-2); }
+
+.person {
+  display: flex; align-items: center; gap: var(--gap-3);
+  width: 100%; padding: var(--gap-3);
+  text-align: left; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.person[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 22px -8px var(--bloom); }
+.person:hover { background: var(--surface-hover); }
+
+.avatar {
+  flex: none; position: relative;
+  width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg-sunken); border: 2px solid var(--tint, var(--line-strong));
+  color: var(--tint, var(--ink-dim));
+  font-size: var(--text-sm); font-weight: 600; overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.person-main { flex: 1; min-width: 0; }
+.person-name {
+  display: flex; align-items: baseline; gap: var(--gap-2);
+  font-size: var(--text); font-weight: 600;
+}
+.person-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-where {
+  margin: 2px 0 0; font-size: var(--text-sm); color: var(--ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.person-meta {
+  margin: var(--gap-2) 0 0; display: flex; flex-wrap: wrap; gap: var(--gap-1) var(--gap-3);
+  font-size: var(--text-xs); color: var(--ink-faint); font-variant-numeric: tabular-nums;
+}
+.person-meta .low { color: var(--alert); }
+
+.badge {
+  flex: none; padding: 1px 8px; border-radius: var(--radius-pill);
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.badge-driving { background: var(--accent-soft); color: var(--accent); }
+/* A fix that is hours old is not where somebody is, it is where they were. */
+.badge-stale { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+
+.person-actions { flex: none; }
+.people-empty { padding: var(--gap-5); color: var(--ink-faint); font-size: var(--text-sm); }
+
+/* ── Map ────────────────────────────────────────────────────── */
+.map-wrap { flex: 1; position: relative; min-width: 0; }
+#map { position: absolute; inset: 0; background: var(--bg-sunken); }
+
+.leaflet-basemap-pane { transition: filter var(--speed) var(--ease); }
+:root[data-theme="night"] .leaflet-basemap-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(1.05) saturate(0.65);
+}
+/* Leaflet's rule is `.leaflet-touch .leaflet-bar a`; match it or the buttons
+   stay 30px, well under the floor everything else here holds to. */
+.leaflet-bar a,
+.leaflet-touch .leaflet-bar a {
+  width: var(--touch-min); height: var(--touch-min);
+  line-height: var(--touch-min); font-size: 22px;
+  background: var(--glass); color: var(--ink);
+  border: 1px solid var(--glass-edge); backdrop-filter: blur(14px);
+}
+.leaflet-bar a:hover,
+.leaflet-touch .leaflet-bar a:hover { background: var(--surface-hover); color: var(--accent); }
+.leaflet-bar { border: 0; box-shadow: var(--shadow); }
+.leaflet-container { font-family: var(--font); background: var(--bg-sunken); }
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--ink-faint); font-size: 11px;
+}
+.leaflet-control-attribution a { color: var(--ink-dim); }
+
+/* A pin that says who it is without being tapped. */
+.pin {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg-raised); border: 3px solid var(--tint, var(--accent));
+  color: var(--tint, var(--accent));
+  font-size: var(--text-xs); font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.pin.is-stale { opacity: 0.55; border-style: dashed; }
+
+.map-btn {
+  position: absolute; left: var(--gap-4); bottom: var(--gap-4); z-index: 500;
+  min-height: var(--touch-min); padding: 0 var(--gap-4);
+  background: var(--glass); backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-edge); border-radius: var(--radius-pill);
+  color: var(--ink); font-size: var(--text-sm); box-shadow: var(--shadow);
+}
+
+/* ── Status ─────────────────────────────────────────────────── */
+.status {
+  flex: none; margin: 0; padding: var(--gap-2) var(--gap-5);
+  border-top: 1px solid var(--line); background: var(--bg-sunken);
+  font-size: var(--text-xs); color: var(--ink-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.status[data-tone="alert"] { color: var(--alert); }
+.status[data-tone="warn"] { color: var(--warn); }
+
+/* ── Setup ──────────────────────────────────────────────────── */
+.setup {
+  position: fixed; inset: 0; z-index: 900;
+  display: grid; place-items: center; padding: var(--gap-5); overflow-y: auto;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(10px);
+}
+.setup-card {
+  width: 100%; max-width: 520px; padding: var(--gap-6);
+  background: var(--glass); border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.setup-card h2 { margin: 0 0 var(--gap-4); font-size: var(--text-xl); }
+
+.tabs { display: flex; gap: var(--gap-1); padding: var(--gap-1); margin-bottom: var(--gap-4);
+  background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius); }
+.tabs button {
+  flex: 1; min-height: var(--touch-min); border: 0; background: transparent;
+  color: var(--ink-dim); border-radius: calc(var(--radius) - 5px); font-size: var(--text-sm);
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+.setup input {
+  width: 100%; min-height: var(--touch-min); margin-bottom: var(--gap-3);
+  padding: 0 var(--gap-3);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); color: var(--ink);
+  -webkit-user-select: text; user-select: text;
+}
+.setup .primary { width: 100%; }
+.note { margin: 0 0 var(--gap-3); font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.5; }
+.note code { font-family: var(--font-mono); color: var(--accent); }
+.note.fine { margin: var(--gap-5) 0 var(--gap-3); }
+.setup-problem {
+  margin: var(--gap-3) 0 0; padding: var(--gap-3);
+  border: 1px solid var(--alert); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--alert) 12%, transparent);
+  font-size: var(--text-sm); color: var(--ink); line-height: 1.45;
+}
+button.ghost {
+  min-height: var(--touch-min); padding: 0 var(--gap-4);
+  background: transparent; border-color: var(--glass-edge);
+  color: var(--ink-dim); font-size: var(--text-sm);
+}
+button.ghost:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+button.ghost.wide { width: 100%; margin-top: var(--gap-2); }
+
+@media (max-width: 1024px) {
+  .fam-body { flex-direction: column; }
+  .side { width: auto; max-height: 46%; border-right: 0; border-bottom: 1px solid var(--line); }
+  .map-wrap { flex: 1; min-height: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-basemap-pane { transition: none; }
+}

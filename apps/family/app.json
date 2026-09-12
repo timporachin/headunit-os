@@ -1,0 +1,14 @@
+{
+  "id": "family",
+  "name": "Family",
+  "icon": "👪",
+  "iconSvg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8.2\" cy=\"7.4\" r=\"3\"/><circle cx=\"16.6\" cy=\"9\" r=\"2.3\"/><path d=\"M2.6 19.4a5.6 5.6 0 0 1 11.2 0\"/><path d=\"M15 14.1a4.3 4.3 0 0 1 6.4 3.7\"/></svg>",
+  "description": "Where everyone is, on a map, from your family location service.",
+  "kind": "process",
+  "cwd": "apps/family",
+  "start": "node server.mjs",
+  "portEnv": "PORT",
+  "immersive": false,
+  "boot": "on-demand",
+  "startTimeoutMs": 20000
+}
