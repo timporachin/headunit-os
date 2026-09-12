@@ -14,15 +14,13 @@ transitions and costs you every app you did not write yourself. Not worth it.
 
 ## Run it
 
-```sh
+```
+setup.cmd                      # first time only: fetches the vendored apps
 npm start                      # shell on http://localhost:4100
 ```
 
-Then point a browser at it. For the real thing, run it chromeless:
-
-```
-msedge.exe --kiosk http://localhost:4100 --edge-kiosk-type=fullscreen --no-first-run
-```
+**[RUNNING.md](RUNNING.md)** covers kiosk mode, the Windows gotchas, and what to do
+when a screen misbehaves. It is the one place that answers "how do I run this".
 
 No dependencies — the shell is plain Node and plain browser JavaScript. Apps bring
 their own.
@@ -73,10 +71,11 @@ instant.
 
 ### Adding God's Eye View
 
+`setup.cmd` clones it and installs its dependencies. By hand it is:
+
 ```sh
 git clone https://github.com/bilawalsidhu/gods-eye-view vendor/gods-eye-view
 cd vendor/gods-eye-view && npm ci && cd ../..
-npm start
 ```
 
 It needs Node 24.14+ or 26.x and a real GPU — it is Cesium with photorealistic 3D
