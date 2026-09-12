@@ -70,12 +70,21 @@ function probe(host, port) {
   });
 }
 
-/** Resolve once something is listening on `port`, or reject at the deadline. */
+/**
+ * Resolve once something is listening on `port`, or reject at the deadline.
+ *
+ * `isDead` returns falsy while the app is still a going concern, or a string
+ * explaining why it is not — so a launch that failed for a knowable reason says
+ * so instead of reporting a timeout.
+ */
 function waitForPort(port, timeoutMs, isDead) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const attempt = async () => {
-      if (isDead?.()) return reject(new Error('the app exited before it served anything'));
+      const dead = isDead?.();
+      if (dead) {
+        return reject(new Error(typeof dead === 'string' ? dead : 'the app exited before it served anything'));
+      }
       const answered = await Promise.all(LOOPBACK.map((host) => probe(host, port)));
       if (answered.some(Boolean)) return resolve();
       if (Date.now() > deadline) {
@@ -163,7 +172,22 @@ export async function start(app) {
       if (app.kind === 'static') {
         instance.server = await serveStatic(app.serveDir, instance.port);
       } else {
-        let exited = false;
+        /*
+         * A process app whose folder is missing is the normal state of a fresh
+         * copy of this repo: everything under vendor/ is fetched by setup.cmd,
+         * not tracked here. Check before spawning, because spawn() reports a
+         * missing cwd by EMITTING 'error' rather than throwing — and an
+         * unhandled 'error' on a ChildProcess takes this whole shell down with
+         * it. Tapping the globe on an unset-up machine used to kill the head
+         * unit outright.
+         */
+        const folder = await stat(app.cwd).catch(() => null);
+        if (!folder?.isDirectory()) {
+          const where = path.relative(process.cwd(), app.cwd) || app.cwd;
+          throw new Error(`its folder "${where}" is not there. Run setup.cmd to fetch the vendored apps.`);
+        }
+
+        let exitReason = null;
         const proc = spawn(app.start, {
           cwd: app.cwd,
           shell: true,
@@ -194,14 +218,20 @@ export async function start(app) {
         instance.proc = proc;
         proc.stdout.on('data', (d) => record(instance, d));
         proc.stderr.on('data', (d) => record(instance, d));
+        /* Belt and braces behind the cwd check above: spawn reports every other
+         * failure the same way, and any of them unhandled is fatal here. */
+        proc.on('error', (err) => {
+          exitReason = `could not be started: ${err.message}`;
+          record(instance, exitReason);
+        });
         proc.on('exit', (code) => {
-          exited = true;
+          exitReason = exitReason || `exited with code ${code}`;
           if (instance.state !== 'stopped') {
             instance.state = 'failed';
-            instance.error = `exited with code ${code}`;
+            instance.error = exitReason;
           }
         });
-        await waitForPort(instance.port, app.startTimeoutMs, () => exited);
+        await waitForPort(instance.port, app.startTimeoutMs, () => exitReason);
       }
       instance.state = 'ready';
       return { url: `http://localhost:${instance.port}` };
