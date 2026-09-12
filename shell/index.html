@@ -135,6 +135,16 @@
               <p class="hint">Dims the whole screen, apps included. It stops at 25% so the
                 head unit can never be turned all the way black.</p>
             </div>
+            <div class="field toggle-row">
+              <div class="toggle-text">
+                <label for="splashOn">Boot animation</label>
+                <p class="hint">The emblem sequence when the head unit starts. Tap it to skip.</p>
+              </div>
+              <button type="button" id="splashOn" class="switch" role="switch" aria-checked="false">
+                <span aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="hint" id="splashHint"></p>
           </section>
 
           <section class="card">
@@ -206,6 +216,28 @@
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!--
+    The boot splash. Ribbons sweep in and wrap into the vehicle's emblem, which
+    is a real image at assets/emblem.png rather than anything drawn here. If
+    that file is absent the splash never runs and the shell boots straight to
+    the launcher.
+
+    Sits above the chrome but BELOW the dimmer, so a head unit set to 40%
+    brightness boots at 40% instead of flashing full bright at five in the
+    morning.
+  -->
+  <div id="splash" class="splash" hidden aria-hidden="true">
+    <div class="splash-hatch"></div>
+    <svg class="splash-ribbons" viewBox="0 0 600 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <ellipse class="ribbon ribbon-b" cx="300" cy="120" rx="290" ry="112"/>
+      <ellipse class="ribbon ribbon-a" cx="300" cy="120" rx="290" ry="112"/>
+    </svg>
+    <div class="splash-emblem">
+      <img id="splashEmblem" src="/assets/emblem.png" alt="">
+      <span class="splash-shine" aria-hidden="true"></span>
+    </div>
+  </div>
 
   <!-- The night dimmer. Above every layer including an app's iframe, and never
        interactive, so it darkens the screen without eating a single tap. -->

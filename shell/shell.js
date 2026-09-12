@@ -29,6 +29,8 @@
     lat: $('lat'), lon: $('lon'), useGps: $('useGps'),
     clearLocation: $('clearLocation'), locationHint: $('locationHint'),
     appRows: $('appRows'), settingsLog: $('settingsLog'), reloadRegistry: $('reloadRegistry'),
+    splash: $('splash'), splashEmblem: $('splashEmblem'),
+    splashOn: $('splashOn'), splashHint: $('splashHint'),
   };
 
   /* The single source of truth for vehicle telemetry. Nothing is wired to a
@@ -64,6 +66,7 @@
     vehicleName: 'F-250',
     keepAwake: false,
     location: null,
+    splash: true,
   };
 
   const oneOf = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
@@ -97,6 +100,9 @@
       vehicleName: String(stored.vehicleName ?? '').trim().slice(0, MAX_NAME) || DEFAULTS.vehicleName,
       keepAwake: stored.keepAwake === true,
       location: usableLoc ? { lat: loc.lat, lon: loc.lon } : null,
+      // On unless it has been turned off, so a fresh head unit gets the
+      // ceremony without being asked for it.
+      splash: stored.splash !== false,
     };
   }
 
@@ -612,6 +618,11 @@
   });
   el.vehicleName.addEventListener('change', commit);
 
+  el.splashOn.addEventListener('click', () => {
+    settings.splash = el.splashOn.getAttribute('aria-checked') !== 'true';
+    commit();
+  });
+
   el.keepAwake.addEventListener('click', () => {
     settings.keepAwake = el.keepAwake.getAttribute('aria-checked') !== 'true';
     commit();
@@ -681,6 +692,7 @@
     el.brightness.value = String(settings.brightness);
     el.brightnessValue.textContent = `${settings.brightness}%`;
     el.keepAwake.setAttribute('aria-checked', String(settings.keepAwake));
+    el.splashOn.setAttribute('aria-checked', String(settings.splash));
     // Never overwrite a field somebody is part-way through typing into.
     if (document.activeElement !== el.vehicleName) el.vehicleName.value = settings.vehicleName;
     if (document.activeElement !== el.lat) el.lat.value = settings.location ? String(settings.location.lat) : '';
@@ -788,9 +800,69 @@
   });
   el.settingsDone.addEventListener('click', closeSettings);
 
+  /* ── The boot splash ────────────────────────────────────── */
+  /*
+   * Ribbons wrap into the emblem, then the launcher.
+   *
+   * The launcher is built underneath while this plays — refresh() resolves
+   * during the hold — so the handoff at the end is instant and never shows a
+   * half-drawn arc. It plays its full length rather than racing the registry,
+   * because a boot animation cut off two thirds through looks like a fault.
+   */
+  const SPLASH_MS = 6400;        // the whole sequence, hold included
+  const SPLASH_FADE_MS = 300;
+  let splashTimer = null;
+
+  function dismissSplash() {
+    clearTimeout(splashTimer);
+    if (el.splash.hidden) return;
+    el.splash.classList.add('gone');
+    setTimeout(() => {
+      el.splash.hidden = true;
+      el.splash.classList.remove('run', 'gone');
+    }, SPLASH_FADE_MS);
+  }
+
+  function runSplash() {
+    if (!settings.splash) return;
+    // Six seconds of animation per reload is no way to develop.
+    if (new URLSearchParams(location.search).has('nosplash')) return;
+
+    const img = el.splashEmblem;
+
+    const begin = () => {
+      el.splash.hidden = false;
+      // A reflow between unhiding and running, so it starts on frame one.
+      void el.splash.offsetWidth;
+      el.splash.classList.add('run');
+      splashTimer = setTimeout(dismissSplash, SPLASH_MS);
+      // Tapping anywhere skips it. A splash you cannot escape is worse than none.
+      el.splash.addEventListener('click', dismissSplash, { once: true });
+    };
+
+    /* No emblem, no splash. The image is the owner's to supply and a broken
+     * picture box on the boot screen is worse than no ceremony at all. */
+    const give_up = () => { el.splash.hidden = true; noteEmblem(false); };
+
+    if (img.complete) {
+      if (img.naturalWidth > 0) { noteEmblem(true); begin(); } else give_up();
+      return;
+    }
+    img.addEventListener('load', () => { noteEmblem(true); begin(); }, { once: true });
+    img.addEventListener('error', give_up, { once: true });
+  }
+
+  /** Say in Settings whether the asset is actually there. */
+  function noteEmblem(found) {
+    el.splashHint.textContent = found
+      ? ''
+      : 'No emblem found, so nothing plays. Put a transparent PNG at shell/assets/emblem.png.';
+  }
+
   /* ── Go ─────────────────────────────────────────────────── */
   applyBrightness();
   applyResolvedTheme();
+  runSplash();
   renderSettings();
   applyWakeLock();
   vehicle.unit = settings.units.speed;

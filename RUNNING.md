@@ -47,6 +47,23 @@ rather than `127.0.0.1`: some apps restrict who may frame them and are told to
 trust both spellings, but the theme and the saved settings are stored per
 origin, so switching between the two looks like losing your preferences.
 
+## The boot animation
+
+Ribbons sweep in and wrap into your vehicle's emblem, then the launcher. It
+plays for about six and a half seconds and **a tap anywhere skips it**.
+
+It needs one file you supply: **`shell/assets/emblem.png`** — a transparent PNG,
+600px or wider on the long edge. Without it the splash simply does not run and
+the head unit boots straight to the launcher; Settings says so under the Boot
+animation switch.
+
+Turn it off in Settings &rarr; Display. For development, `?nosplash` on the URL
+skips it without changing the setting:
+
+```
+http://localhost:4100?nosplash
+```
+
 ## When something sticks
 
 **The globe loads part-way and stalls, or a black console window appears.**

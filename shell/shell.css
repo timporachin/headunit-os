@@ -550,6 +550,108 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
   transition: opacity var(--speed) var(--ease);
 }
 
+/* ── The boot splash ────────────────────────────────────────── */
+/*
+ * Ribbons sweep in from the right, orbit, and wrap into the vehicle's emblem.
+ *
+ * Deliberately dark in BOTH themes rather than given a light day variant: this
+ * is a badge reveal, and white ribbons on a pale ground do not read at all. It
+ * holds a few seconds and hands over to the launcher, which is where day mode
+ * belongs. Day only lifts the ground enough to stop it looking like a dead
+ * panel in direct sun.
+ */
+.splash {
+  position: fixed; inset: 0; z-index: 55;
+  display: grid; place-items: center;
+  overflow: hidden; cursor: pointer;
+  /* Navy rather than near-black: measured off the source frames, where the
+     ground is clearly blue and the weave reads against it. */
+  background: radial-gradient(120% 100% at 50% 45%, #0d1140 0%, #05071c 72%);
+  --ribbon-1: #ffffff;
+  --ribbon-2: var(--accent);
+}
+:root[data-theme="day"] .splash {
+  background: radial-gradient(120% 100% at 50% 45%, #161c5a 0%, #0a0d2a 72%);
+}
+.splash.gone { opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease); }
+
+.splash-hatch {
+  position: absolute; inset: -10%; opacity: 0;
+  background:
+    repeating-linear-gradient(7deg,  rgba(150, 175, 255, 0.10) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(-7deg, rgba(150, 175, 255, 0.07) 0 1px, transparent 1px 9px);
+}
+.splash.run .splash-hatch { animation: sp-ground 450ms ease-out both; }
+@keyframes sp-ground { from { opacity: 0; } to { opacity: 1; } }
+
+/* Two arcs of one ellipse. The dash gap is most of the circumference, so what
+   draws is a ribbon travelling round rather than a closed outline. */
+.splash-ribbons { position: absolute; width: min(44%, 560px); height: auto; overflow: visible; }
+.ribbon { fill: none; stroke-linecap: round; opacity: 0; }
+.ribbon-a { stroke: var(--ribbon-1); stroke-width: 6;  stroke-dasharray: 470 1330; }
+.ribbon-b { stroke: var(--ribbon-2); stroke-width: 17; stroke-dasharray: 380 1330;
+            filter: drop-shadow(0 0 16px var(--bloom)); }
+
+.splash.run .splash-ribbons { animation: sp-orbit  2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 200ms both; }
+.splash.run .ribbon-a       { animation: sp-ribbon 2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 200ms both; }
+.splash.run .ribbon-b       { animation: sp-ribbon 2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 340ms both; }
+
+/* One animation per element covering its whole life. Two animations touching
+   the same property would fight over it through their fill modes. */
+/* One continuous travel rather than staged stops. Staging the offset left a
+   dead beat around the one-second mark, exactly where the source is at its most
+   dramatic — the dash had wandered off the visible path between keyframes. */
+@keyframes sp-ribbon {
+  0%   { stroke-dashoffset: 1330; opacity: 0; }
+  10%  { opacity: 1; }
+  84%  { opacity: 1; }
+  100% { stroke-dashoffset: -430; opacity: 0; }
+}
+@keyframes sp-orbit {
+  0%   { transform: rotate(-38deg) scale(1.38); }
+  55%  { transform: rotate(7deg) scale(1.07); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+.splash-emblem {
+  position: relative; width: min(32%, 410px);
+  clip-path: ellipse(4% 8% at 50% 50%);
+}
+.splash-emblem img { display: block; width: 100%; height: auto; opacity: 0; }
+.splash.run .splash-emblem     { animation: sp-clip   850ms cubic-bezier(0.2, 0.8, 0.25, 1) 1250ms both; }
+.splash.run .splash-emblem img { animation: sp-emblem 950ms cubic-bezier(0.2, 0.8, 0.25, 1) 1250ms both; }
+
+@keyframes sp-clip {
+  from { clip-path: ellipse(4% 8% at 50% 50%); }
+  to   { clip-path: ellipse(100% 100% at 50% 50%); }
+}
+@keyframes sp-emblem {
+  0%   { opacity: 0; transform: scale(1.14); filter: blur(11px); }
+  40%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+/* The one thing that sells a flat PNG as metal.
+ *
+ * Masked with the emblem itself, so the highlight travels across the badge and
+ * nowhere else. Without the mask the gradient bar is clipped to the element's
+ * BOX instead, and reads as a grey rectangle sliding over the artwork — which
+ * is exactly what it looked like before this line existed. */
+.splash-shine {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0;
+  -webkit-mask: url("/assets/emblem.png") center / 100% 100% no-repeat;
+  mask: url("/assets/emblem.png") center / 100% 100% no-repeat;
+}
+.splash-shine::before {
+  content: ""; position: absolute; top: -40%; bottom: -40%; left: -45%; width: 22%;
+  transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+}
+.splash.run .splash-shine         { animation: sp-shine-on 750ms ease-out 1850ms both; }
+.splash.run .splash-shine::before { animation: sp-shine    750ms cubic-bezier(0.3, 0, 0.2, 1) 1850ms both; }
+@keyframes sp-shine-on { 0%, 100% { opacity: 0; } 20%, 72% { opacity: 1; } }
+@keyframes sp-shine    { from { left: -40%; } to { left: 118%; } }
+
 /* ── Toasts ─────────────────────────────────────────────────── */
 .toasts {
   position: fixed; left: 50%; bottom: var(--gap-5); transform: translateX(-50%);
@@ -580,6 +682,13 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
   .switch > span, .dimmer { transition: none; }
+  /* The splash resolves straight to its final frame: emblem present, ribbons
+     gone. Left to itself it would sit on frame one forever. */
+  .splash *, .splash.run * { animation: none !important; }
+  .splash-emblem { clip-path: none; }
+  .splash-emblem img { opacity: 1; filter: none; transform: none; }
+  .splash-hatch { opacity: 1; }
+  .ribbon { opacity: 0; }
 }
 
 /* Below this the settings cards stop fitting side by side. The launcher needs
