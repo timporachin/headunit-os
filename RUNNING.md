@@ -64,6 +64,30 @@ skips it without changing the setting:
 http://localhost:4100?nosplash
 ```
 
+### If the emblem arrives with a background
+
+Copying an image that has transparency and saving it from a preview usually
+bakes the grey-and-white checkerboard into the pixels. It looks right as a
+thumbnail and composites as a grey rectangle behind the badge. Windows will
+also quietly name the file `emblem.png.png` if extensions are hidden.
+
+Best fix is to download the actual file — right-click the image itself and
+*Save image as…* — rather than saving a preview of it. Failing that:
+
+```
+node tools/cutout.mjs shell/assets/emblem.png
+```
+
+It reads the background off the border of the image and removes only the part
+connected to the edge, so white lettering inside the badge is never touched,
+then feathers and un-blends the antialiased rim. Your original is kept beside
+it as `emblem.original.png`, and running it twice does nothing.
+
+Two knobs if the first pass is not right. `--tolerance` (default 8) is how
+close a colour must be to count as background: raise it if a pale fringe
+survives, lower it if the cut bites into the artwork. `--feather` (default 1)
+is how wide the blended edge is.
+
 ## When something sticks
 
 **The globe loads part-way and stalls, or a black console window appears.**
