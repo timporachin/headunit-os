@@ -1,0 +1,149 @@
+/*
+ * Lobby and table. Sized for a screen read at arm's length in a parked truck,
+ * so everything is a size up from a desktop and nothing needs aiming at.
+ */
+
+body { overflow: hidden; }
+
+/* ── Lobby ───────────────────────────────────────────────── */
+
+.lobby {
+  position: absolute; inset: 0;
+  overflow-y: auto;
+  padding: var(--gap-6) var(--gap-7) var(--gap-8);
+  display: flex; flex-direction: column; gap: var(--gap-6);
+}
+
+.lobby-head h1 { margin: 0 0 var(--gap-2); font-size: var(--text-2xl); letter-spacing: -0.01em; }
+.lobby-head p  { margin: 0; color: var(--ink-dim); font-size: var(--text); max-width: 62ch; }
+
+.lobby h2 {
+  margin: 0 0 var(--gap-3);
+  font-size: var(--text-sm); font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--gap-4);
+}
+
+.venue {
+  display: flex; flex-direction: column; gap: var(--gap-2);
+  min-height: var(--touch-lg);
+  padding: var(--gap-4) var(--gap-5);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.venue:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+.venue-name  { font-size: var(--text-lg); font-weight: 600; }
+.venue-blurb { font-size: var(--text-sm); color: var(--ink-dim); line-height: 1.45; }
+
+/* ── Saved tables ────────────────────────────────────────── */
+
+.saved-list { display: flex; flex-wrap: wrap; gap: var(--gap-3); }
+.saved-row {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--accent-soft);
+}
+.saved-open {
+  border: 0; border-radius: 0; background: transparent;
+  padding: 0 var(--gap-3) 0 var(--gap-5);
+  font-size: var(--text); font-weight: 600;
+  max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.saved-drop {
+  border: 0; border-radius: 0; background: transparent;
+  width: var(--touch-min); min-width: var(--touch-min);
+  color: var(--ink-faint); font-size: var(--text-lg);
+}
+.saved-drop:hover { background: var(--alert); color: #fff; }
+
+/* ── Open by link ────────────────────────────────────────── */
+
+.add .hint, .blocked .hint {
+  margin: 0 0 var(--gap-3); color: var(--ink-dim);
+  font-size: var(--text-sm); max-width: 62ch;
+}
+.add-row { display: flex; gap: var(--gap-3); max-width: 760px; }
+.add-row input {
+  flex: 1 1 auto; min-width: 0;
+  height: var(--touch);
+  padding: 0 var(--gap-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+.add-row input::placeholder { color: var(--ink-faint); }
+.add-row button { min-width: 132px; }
+.error { margin: var(--gap-3) 0 0; color: var(--alert); font-size: var(--text-sm); }
+
+.blocked-list {
+  margin: 0; padding-left: var(--gap-5);
+  color: var(--ink-faint); font-size: var(--text-sm); line-height: 1.7;
+}
+
+/* ── The table ───────────────────────────────────────────── */
+
+.table { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+/* Slim on purpose. Every pixel here is one the game does not get, and the
+   games are dense. */
+.table-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+}
+.table-bar button {
+  min-height: var(--touch-min);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+.back { padding: 0 var(--gap-4); font-weight: 600; }
+.reload { width: var(--touch-min); padding: 0; font-size: var(--text-lg); }
+.help { padding: 0 var(--gap-4); font-size: var(--text-sm); color: var(--ink-dim); }
+.table-name {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-dim); font-size: var(--text-sm);
+}
+
+.frame-wrap { position: relative; flex: 1 1 auto; min-height: 0; }
+
+iframe {
+  width: 100%; height: 100%;
+  border: 0; display: block;
+  /* Somebody else's page on a dark screen: give it white to paint on rather
+     than letting our background show through wherever it is transparent. */
+  background: #ffffff;
+}
+
+/* Sits over the frame, not in it — a blank frame has nothing to put this in. */
+.frame-note {
+  position: absolute; left: 50%; bottom: var(--gap-6);
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - var(--gap-7)));
+  padding: var(--gap-4) var(--gap-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--shadow);
+}
+.frame-note p { margin: 0 0 var(--gap-2); font-size: var(--text-sm); line-height: 1.5; }
+.frame-note p:last-of-type { color: var(--ink-dim); }
+.frame-note button { margin-top: var(--gap-2); min-height: var(--touch-min); }
+
+@media (max-width: 1024px) {
+  .lobby { padding: var(--gap-5) var(--gap-5) var(--gap-7); }
+  .grid { grid-template-columns: 1fr; }
+}

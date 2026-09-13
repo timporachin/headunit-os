@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poker</title>
+<!-- The OS look, pulled from the shell so this app inherits the theme and the
+     touch sizes rather than inventing its own. -->
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<link rel="stylesheet" href="poker.css">
+</head>
+<body>
+
+<!--
+  This app writes no poker. It is a way in to tables hosted elsewhere, because
+  the games worth playing are the ones with other people at them, and those
+  people are not going to install anything to sit at a table with you.
+
+  Every venue below was checked for one thing before it was listed: whether it
+  sends X-Frame-Options or a Content-Security-Policy frame-ancestors, either of
+  which makes it impossible to show inside this OS. The ones that refused are
+  named in the lobby rather than quietly left out, so nobody re-discovers them
+  and wonders why they were missed.
+
+  Those headers belong to somebody else and can change without warning. When a
+  table stays blank, that is the most likely reason, and the frame says so
+  rather than sitting there empty.
+-->
+
+<main class="lobby" id="lobby">
+
+  <header class="lobby-head">
+    <h1>Poker</h1>
+    <p>Tables hosted elsewhere. Share the link and whoever you are playing
+       joins from a phone — no account, no install.</p>
+  </header>
+
+  <section class="saved" id="savedBlock" hidden>
+    <h2>Your tables</h2>
+    <div class="saved-list" id="savedList"></div>
+  </section>
+
+  <section class="venues">
+    <h2>Texas Hold&rsquo;em</h2>
+    <div class="grid" id="holdem"></div>
+  </section>
+
+  <section class="venues">
+    <h2>Open Face Chinese</h2>
+    <div class="grid" id="ofc"></div>
+  </section>
+
+  <section class="add">
+    <h2>Open a table by link</h2>
+    <p class="hint">Made a table on your phone? Paste its link here and it is
+       kept for next time.</p>
+    <form class="add-row" id="addForm">
+      <input id="addUrl" type="url" inputmode="url" autocomplete="off"
+             placeholder="https://www.pokernow.com/games/…" aria-label="Table link">
+      <button class="primary" type="submit">Open</button>
+    </form>
+    <p class="error" id="addError" hidden></p>
+  </section>
+
+  <section class="venues blocked">
+    <h2>Will not work here</h2>
+    <p class="hint">Checked and rejected: these refuse to be shown inside
+       another page, so the head unit can only ever get a blank frame from
+       them. Listed so they do not look like an oversight.</p>
+    <ul class="blocked-list" id="blockedList"></ul>
+  </section>
+
+</main>
+
+<!-- The table view. The site owns the whole screen; this bar is the way back. -->
+<section class="table" id="table" hidden>
+  <div class="table-bar">
+    <button class="back" id="back" type="button">← Tables</button>
+    <span class="table-name" id="tableName"></span>
+    <button class="help" id="help" type="button">Blank?</button>
+    <button class="reload" id="reload" type="button" title="Reload">↻</button>
+  </div>
+  <div class="frame-wrap">
+    <!-- camera and microphone are declared for Kosmi's video chat, but they
+         only reach the table if the shell grants them to this app first, and
+         today it frames apps with no allow list at all. Asking for autoplay or
+         clipboard-write as well only produced console warnings for permissions
+         that were never ours to hand on. -->
+    <iframe id="frame" title="Poker table"
+            referrerpolicy="no-referrer"
+            allow="camera; microphone"></iframe>
+    <div class="frame-note" id="frameNote" hidden>
+      <p><strong id="frameNoteTitle">Nothing is loading.</strong></p>
+      <p id="frameNoteBody"></p>
+      <button id="frameNoteDismiss" type="button">Dismiss</button>
+    </div>
+  </div>
+</section>
+
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<script src="poker.js"></script>
+</body>
+</html>

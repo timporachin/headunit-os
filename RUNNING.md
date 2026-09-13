@@ -47,6 +47,37 @@ rather than `127.0.0.1`: some apps restrict who may frame them and are told to
 trust both spellings, but the theme and the saved settings are stored per
 origin, so switching between the two looks like losing your preferences.
 
+## Poker
+
+Texas Hold'em and Open Face Chinese, against actual people. The app writes no
+poker of its own — it is a way in to tables hosted elsewhere, because the games
+worth playing are the ones with somebody else at them, and nobody is installing
+anything to sit at a table with you.
+
+Make a table on your phone, send the link to whoever is playing, and open the
+same link here. Links you open are kept in the lobby so a regular game is one
+tap next time.
+
+Every venue listed was checked for one thing: whether it sends
+`X-Frame-Options` or a `Content-Security-Policy: frame-ancestors`, either of
+which makes it impossible to show inside this OS. Those that refused — Board
+Game Arena and unmasked.poker — are named in the lobby rather than quietly left
+out, so nobody rediscovers them and wonders why they were missed.
+
+**Those headers belong to other people.** A venue can start refusing to be
+framed at any time, and a table that has always worked will go blank with no
+warning. There is nothing this end can do about that, and nothing it can
+detect either: a frame that was refused, one that never loaded, and one that
+simply has not painted yet are identical from inside the page. So the app does
+not guess. The **Blank?** button in the table bar explains the situation to the
+one party who can actually see the screen.
+
+**Kosmi's video chat will not work yet.** It needs camera and microphone, and
+the shell frames apps with no permissions list at all, so there is nothing for
+this app to hand on. The table itself plays fine without it. Fixing it properly
+means letting a manifest ask for permissions and having the shell put them on
+the frame — worth doing when something else needs it too.
+
 ## When something sticks
 
 **The globe loads part-way and stalls, or a black console window appears.**
