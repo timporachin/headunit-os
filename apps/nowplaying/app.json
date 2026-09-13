@@ -1,0 +1,14 @@
+{
+  "id": "nowplaying",
+  "name": "Now Playing",
+  "icon": "🎵",
+  "iconSvg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"6.8\" cy=\"17.4\" r=\"2.6\"/><circle cx=\"17.4\" cy=\"15.4\" r=\"2.6\"/><path d=\"M9.4 17.4V6.2l10.6-2.1v11.3\"/></svg>",
+  "description": "What the phone is playing, and the controls to change it.",
+  "kind": "process",
+  "cwd": "apps/nowplaying",
+  "start": "node server.mjs",
+  "portEnv": "PORT",
+  "immersive": false,
+  "boot": "on-demand",
+  "startTimeoutMs": 20000
+}
