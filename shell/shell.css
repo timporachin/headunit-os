@@ -234,36 +234,45 @@
  * within a few pixels, not exact.
  *
  * The blurs sit on strokes that never move, so they rasterise once. Only the
- * pulses animate, and they carry a transform, which stays on the compositor.
+ * light running round the outline animates, and it moves a dash offset rather
+ * than redrawing anything.
  */
-.haze, .pulse {
+.haze {
   fill: none;
   stroke: #ffffff;
   stroke-linejoin: round;
 }
-.haze-wide { stroke-width: 34; opacity: 0.10; filter: blur(11px); }
-.haze-mid  { stroke-width: 18; opacity: 0.13; filter: blur(6px); }
-.haze-near { stroke-width: 8;  opacity: 0.15; filter: blur(3px); }
+/* Thinned once the travelling light went in. The haze is now only the resting
+   trace that says where the truck is; the light is the thing you look at, and
+   it cannot read as light if it is competing with a bright standing glow. */
+.haze-wide { stroke-width: 34; opacity: 0.07; filter: blur(11px); }
+.haze-mid  { stroke-width: 18; opacity: 0.09; filter: blur(6px); }
+.haze-near { stroke-width: 8;  opacity: 0.10; filter: blur(3px); }
 
-/* Three copies of the silhouette swelling outward and fading, a third of a
-   cycle apart so one is always in flight. Scaling a shape about its own centre
-   makes it grow along its own outline, which is what reads as light coming off
-   the truck rather than a box expanding around it. */
-.pulse {
-  stroke-width: 12;
-  opacity: 0;
-  filter: blur(5px);
-  transform-box: view-box;
-  transform-origin: 751px 684px;   /* the silhouette's centroid, in image pixels */
-  animation: aura-radiate 5s linear infinite;
+/*
+ * A length of light running round the truck's own perimeter.
+ *
+ * The path carries pathLength="1000", so every number below is a thousandth of
+ * the outline rather than a user unit. Nothing has to measure the path, and
+ * swapping the silhouette for a better one later cannot break the timing — the
+ * dash maths does not know or care how long the real curve is.
+ *
+ * Three passes on one clock: a broad soft tail, a glow, and a thin bright core.
+ * The tail is phase-shifted so it ends where the core ends and trails behind it
+ * rather than running ahead — 170 thousandths at 7s a lap is 1.19s, taken off
+ * the cycle as a negative delay so nothing sits parked at the start on load.
+ */
+.chase {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  animation: chase 7s linear infinite;
 }
-.pulse-b { animation-delay: 1.667s; }
-.pulse-c { animation-delay: 3.333s; }
+.chase-tail { stroke-width: 16; opacity: 0.10; filter: blur(7px);   stroke-dasharray: 230 770; animation-delay: -5.81s; }
+.chase-glow { stroke-width: 10; opacity: 0.30; filter: blur(4px);   stroke-dasharray: 90 910; }
+.chase-core { stroke-width: 3;  opacity: 0.85; filter: blur(1.2px); stroke-dasharray: 60 940; }
 
-@keyframes aura-radiate {
-  from { transform: scale(1);    opacity: 0.20; }
-  to   { transform: scale(1.14); opacity: 0; }
-}
+@keyframes chase { to { stroke-dashoffset: -1000; } }
 
 /* Once the menu is out, the glow has said what it had to say. */
 .scene:has(.truck-hotspot.open) .scene-aura {
@@ -730,12 +739,14 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-    .orb, .toast, .card, .scene-plate,
-  .pulse, .ripple::before, .ripple::after { animation: none !important; }
-  /* The glow stays — it is the only thing marking the tap target now that the
-     label is gone. Only the pulses coming off it stop. */
-  .haze { opacity: 0.13; }
-  .pulse { opacity: 0; }
+  .orb, .toast, .card, .scene-plate,
+  .chase, .ripple::before, .ripple::after { animation: none !important; }
+  /* The haze stays — it is the only thing marking the tap target now that the
+     label is gone. The light is hidden rather than parked, because a bright
+     segment stopped dead at one arbitrary point on the outline looks like a
+     fault rather than a design. */
+  .haze { opacity: 0.09; }
+  .chase { opacity: 0; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
