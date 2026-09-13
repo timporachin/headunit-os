@@ -15,7 +15,7 @@
     railTab: $('railTab'), launcher: $('launcher'),
     empty: $('launcherEmpty'), errors: $('registryErrors'),
     sceneBackdrop: $('sceneBackdrop'), truckHotspot: $('truckHotspot'),
-    radialMenu: $('radialMenu'), ring: $('ring'),
+    radialMenu: $('radialMenu'),
     frames: $('frames'), boot: $('boot'), bootName: $('bootName'), bootNote: $('bootNote'),
     failure: $('failure'), failName: $('failName'), failWhy: $('failWhy'), failLog: $('failLog'),
     statusTitle: $('statusTitle'), statusState: $('statusState'),
@@ -381,54 +381,6 @@
     el.errors.textContent = errors.join('\n');
     renderAppRows();
   }
-
-  /* ── The hotspot ring ───────────────────────────────────── */
-
-  /*
-   * A circle whose radius rises and falls as it goes round: r = R + a·sin(nθ).
-   * Two of them, with different lobe counts, turning opposite ways — because
-   * the counts differ the gap between them never repeats the same way, and the
-   * pair reads as one outline moving rather than two rings spinning.
-   *
-   * Sampled as a polyline rather than fitted with Béziers. At 96px on screen
-   * 180 points is well under a pixel per segment, and nobody has to reason
-   * about control points to change the shape.
-   */
-  const RING_MID = 60;   // centre of the 0 0 120 120 viewBox the ring lives in
-
-  function wavyCircle(radius, lobes, amplitude, steps = 180) {
-    const parts = [];
-    for (let i = 0; i < steps; i++) {
-      const t = (i / steps) * Math.PI * 2;
-      const r = radius + amplitude * Math.sin(lobes * t);
-      const x = RING_MID + Math.cos(t) * r;
-      const y = RING_MID + Math.sin(t) * r;
-      parts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
-    }
-    return `M${parts[0]}L${parts.slice(1).join('L')}Z`;
-  }
-
-  /* Three shapes with different lobe counts, morphed between and turned slowly
-     at the same time. Rotation on its own reads as a cog going round; morphing
-     on its own sits in one place. Together the wave both travels and changes
-     depth, which is what water does — and both are cheap, since one is a
-     transform and the other interpolates a single attribute.
-
-     The keyframes are built here rather than written into the stylesheet
-     because CSS will only interpolate `d` between paths that have identical
-     command structure, and the way to guarantee that is to generate every one
-     of them from the same function with the same step count. */
-  const RING = [wavyCircle(42, 7, 2.0), wavyCircle(42, 9, 1.4), wavyCircle(42, 5, 2.3)];
-  el.ring.setAttribute('d', RING[0]);
-
-  const ringStyle = document.createElement('style');
-  ringStyle.textContent = `@keyframes ring-wave {
-      0%   { d: path("${RING[0]}"); }
-      33%  { d: path("${RING[1]}"); }
-      66%  { d: path("${RING[2]}"); }
-      100% { d: path("${RING[0]}"); }
-    }`;
-  document.head.appendChild(ringStyle);
 
   /* ── The radial menu ────────────────────────────────────── */
 

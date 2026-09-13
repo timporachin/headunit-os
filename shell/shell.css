@@ -182,17 +182,32 @@
 
 .scene { position: relative; width: 100%; height: 100%; overflow: hidden; }
 
-.scene-bg {
+/* The photograph and the glow drawn over it are one object.
+   The drift used to live on the image; with an outline traced onto the
+   photograph it has to move both, or the glow walks off the truck within a
+   few seconds. Same reason the SVG carries the image's own viewBox and
+   preserveAspectRatio="xMidYMid slice" — "slice" is what object-fit: cover
+   is called in SVG, so the two crop identically at every window shape. */
+.scene-plate {
   position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-  user-select: none; -webkit-user-drag: none;
-  /* A slow drift stops the home screen reading as a still photograph of a
-     screen. It moves transform only, so it never touches layout. */
   transform-origin: 50% 42%;
   animation: idle-drift 26s ease-in-out infinite alternate;
+  /* Decoration, all of it. Without this the drifting photograph took the
+     pointerup of a tap whose pointerdown had gone to the button above it, and
+     the browser then fired the click on their common ancestor instead of on
+     the button — so tapping the truck did nothing at all. */
+  pointer-events: none;
 }
+.scene-bg, .scene-aura {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+.scene-bg {
+  object-fit: cover;
+  user-select: none; -webkit-user-drag: none;
+}
+.scene-aura { z-index: 1; overflow: visible; }
 @keyframes idle-drift {
   from { transform: scale(1.03) translate(0%, 0%); }
   to   { transform: scale(1.09) translate(-1.6%, -1%); }
@@ -208,71 +223,77 @@
 .scene-backdrop.open { opacity: 1; pointer-events: auto; }
 
 /*
- * Sits on the truck. There is no filled shape here — anything solid pinned to
- * a photograph reads as a control stuck on top of the picture. What marks the
- * spot is an open outline that keeps moving: the photograph shows through it,
- * and the movement is what says "something is here".
+ * The truck lights up rather than wearing a marker. The outline is the
+ * vehicle's own silhouette, stroked and bloomed, with nothing filled — the
+ * photograph shows through, and what says "press here" is that the thing you
+ * are looking at is glowing.
  *
- * The target is larger than the ring it carries, because an invisible control
- * has to be forgiving to hit.
+ * The bloom is a filter on a path that never moves, so it rasterises once and
+ * is reused. The pulses that do move carry no filter, only a transform, which
+ * keeps the animation on the compositor.
  */
-.truck-hotspot {
-  position: absolute; left: 50%; top: 65%; z-index: 3;
-  width: 96px; height: 96px;
-  transform: translate(-50%, -50%);
-  padding: 0; border: 0; border-radius: 50%;
-  background: transparent;
-}
-.hotspot-ring {
-  position: absolute; inset: -14%;
-  width: auto; height: auto;
-  overflow: visible;
-  animation: ring-breathe 6s ease-in-out infinite;
-}
-.ring {
+.aura-glow {
   fill: none;
-  /* Weighed against the photograph rather than picked: the truck's bodywork is
-     a pale cream, and at 0.62/1.6 the line was there but not findable at
-     arm's length. Heavier than this and it stops looking like part of the
-     picture and starts looking stuck on top of it. */
-  stroke: rgba(255, 255, 255, 0.75);
-  stroke-width: 1.8;
-  /* Turn about the middle of the viewBox, not the middle of the path's own
-     box: the path is morphing, so its box keeps changing, and rotating about
-     that would make the ring wander as it turned.
-
-     This is also why the viewBox is 0 0 120 120 with the path drawn around
-     (60,60), rather than -60 -60 120 120 around the origin. Chrome resolves
-     transform-origin here to the user-space point (60,60) rather than to an
-     offset from the viewBox's corner, so with a viewBox starting at -60 the
-     ring rotated about a point 85 units off its own centre and orbited. With
-     the box starting at 0 0 both readings land on the same place. */
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-  /* The photograph underneath runs from a bright sky to a dark wheel arch and
-     a 1.6px line loses against both. The shadow is what carries it over
-     either. */
-  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.65));
-  /* ring-wave is generated in shell.js — see there for why. */
-  animation: ring-wave 14s ease-in-out infinite, ring-spin 26s linear infinite;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 4px var(--accent))
+          drop-shadow(0 0 12px var(--accent))
+          drop-shadow(0 0 26px #2f7de0);
 }
 
-/* Once the menu is out, the ring has said what it had to say.
-   The breathe animation has to be called off as well as the opacity set: it
-   animates opacity too, and a running animation outranks a transition, so on
-   its own the fade never happened and the ring sat there at whatever the
-   breathe was mid-way through. */
-.truck-hotspot.open .hotspot-ring {
-  animation: none;
+/* Three copies of the same silhouette swelling outward and fading, a third of
+   a cycle apart so one is always in flight. Scaling a shape about its own
+   centre makes it grow along its own outline, which is what reads as light
+   coming off the truck rather than a box expanding around it. */
+.aura-pulse {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
   opacity: 0;
+  transform-box: view-box;
+  transform-origin: 754px 686px;   /* the silhouette's centroid, in image pixels */
+  animation: aura-radiate 5s linear infinite;
+}
+.aura-pulse:nth-of-type(3) { animation-delay: 1.667s; }
+.aura-pulse:nth-of-type(4) { animation-delay: 3.333s; }
+
+@keyframes aura-radiate {
+  from { transform: scale(1);    opacity: 0.55; }
+  to   { transform: scale(1.16); opacity: 0; }
+}
+
+/* Once the menu is out, the glow has said what it had to say. */
+.scene:has(.truck-hotspot.open) .scene-aura {
+  opacity: 0.25;
   transition: opacity var(--speed) var(--ease);
 }
 
-@keyframes ring-spin   { to { transform: rotate(360deg); } }
-@keyframes ring-breathe {
-  0%, 100% { transform: scale(0.94); opacity: 0.72; }
-  50%      { transform: scale(1.06); opacity: 1; }
+/*
+ * The control itself is invisible and covers the truck: the thing you see
+ * glowing is the thing you press. It is sized in percentages of the scene
+ * rather than traced, because the photograph is cover-cropped and drifting —
+ * a few percent of slop costs nothing on a target this large.
+ */
+.truck-hotspot {
+  position: absolute; z-index: 3;
+  /* Placed by edges, not centred with a transform. tokens.css gives every
+     button `transform: translateY(1px)` on :active, which REPLACES a centring
+     translate rather than adding to it — so on press the button jumped down
+     and right by half its own size, slid out from under the finger, and the
+     browser retargeted the click to the common ancestor. Tapping the truck
+     then did nothing at all. At 96px the jump was small enough to stay under
+     the finger and the bug stayed hidden; at this size it does not. */
+  left: 26.5%; top: 47%;
+  width: 46%; height: 40%;
+  padding: 0; border: 0; border-radius: var(--radius-lg);
+  background: transparent;
 }
+/* A target this big would otherwise sit over the backdrop and swallow the tap
+   that closes the menu. */
+.truck-hotspot.open { pointer-events: none; }
 
 /*
  * The tap ripple. Two rings on a stagger, each squashed vertically as it grows
@@ -698,11 +719,12 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-  .orb, .toast, .card, .scene-bg,
-  .hotspot-ring, .ring, .ripple::before, .ripple::after { animation: none !important; }
-  /* The ring stays — it is the only thing marking the tap target now that the
-     label is gone. It simply stops turning. */
-  .hotspot-ring { opacity: 1; transform: none; }
+  .orb, .toast, .card, .scene-plate,
+  .aura-pulse, .ripple::before, .ripple::after { animation: none !important; }
+  /* The glow stays — it is the only thing marking the tap target now that the
+     label is gone. Only the pulses coming off it stop. */
+  .aura-glow { opacity: 0.95; }
+  .aura-pulse { opacity: 0; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }

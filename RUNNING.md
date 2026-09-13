@@ -47,6 +47,19 @@ rather than `127.0.0.1`: some apps restrict who may frame them and are told to
 trust both spellings, but the theme and the saved settings are stored per
 origin, so switching between the two looks like losing your preferences.
 
+## The home screen
+
+The truck glows. Its outline is traced from `shell/assets/truck.jpg` itself and
+lives in `shell/index.html` as `#truckOutline`, in that photograph's own pixel
+coordinates — which is why the SVG shares the image's `viewBox` and sits beside
+it inside `.scene-plate`, so the slow drift moves both as one object.
+
+**Swapping the photograph invalidates the outline.** The glow would trace a
+vehicle that is no longer there, and the path has to be re-traced against the
+new image. That is the one maintenance cost of this effect.
+
+Tapping anywhere on the truck opens the apps.
+
 ## The boot animation
 
 Ribbons sweep in and wrap into your vehicle's emblem, then the launcher. It
