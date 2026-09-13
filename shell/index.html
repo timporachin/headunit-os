@@ -58,19 +58,25 @@
     <section class="launcher" id="launcher">
       <!--
         The home screen is a photograph of the vehicle with the apps hidden in
-        it: a hotspot on the truck pulses, and tapping it blooms the installed
-        apps outward from that point. The menu is built from the registry, so
-        the arc is whatever is installed rather than a fixed set.
+        it: a wavy ring drifts over the truck, and tapping it blooms the
+        installed apps outward from that point. The menu is built from the
+        registry, so the arc is whatever is installed rather than a fixed set.
+
+        The ring carries the whole affordance — there is no label. Its path is
+        generated in shell.js rather than written out here: it is 180 sampled
+        points, and the numbers would mean nothing on the page.
       -->
       <div class="scene">
         <img class="scene-bg" src="/assets/truck.jpg" alt="" draggable="false">
         <div class="scene-backdrop" id="sceneBackdrop"></div>
 
         <button class="truck-hotspot" id="truckHotspot"
-                aria-label="Open apps" aria-expanded="false" aria-controls="radialMenu"></button>
+                aria-label="Open apps" aria-expanded="false" aria-controls="radialMenu">
+          <svg class="hotspot-ring" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+            <path class="ring" id="ring"></path>
+          </svg>
+        </button>
         <div class="radial-menu" id="radialMenu" role="menu" aria-label="Installed apps"></div>
-
-        <p class="scene-hint" id="sceneHint">Tap the truck</p>
 
         <p class="launcher-empty" id="launcherEmpty" hidden>
           No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.

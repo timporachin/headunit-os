@@ -208,12 +208,12 @@
 .scene-backdrop.open { opacity: 1; pointer-events: auto; }
 
 /*
- * Sits on the truck. There is no button here — a solid dot pinned to a
- * photograph reads as a control stuck on top of the picture. What is left is a
- * soft wave that breathes slowly, which is enough to say "something is here"
- * without pretending to be a widget, and a stronger ripple on tap.
+ * Sits on the truck. There is no filled shape here — anything solid pinned to
+ * a photograph reads as a control stuck on top of the picture. What marks the
+ * spot is an open outline that keeps moving: the photograph shows through it,
+ * and the movement is what says "something is here".
  *
- * The target is larger than the wave it carries, because an invisible control
+ * The target is larger than the ring it carries, because an invisible control
  * has to be forgiving to hit.
  */
 .truck-hotspot {
@@ -223,21 +223,55 @@
   padding: 0; border: 0; border-radius: 50%;
   background: transparent;
 }
-.truck-hotspot::before {
-  content: ""; position: absolute; inset: -18%;
-  border-radius: 50%;
-  background: radial-gradient(circle,
-    rgba(255, 255, 255, 0.20) 0%,
-    rgba(255, 255, 255, 0.09) 42%,
-    transparent 68%);
-  animation: breathe-wave 6s ease-in-out infinite;
+.hotspot-ring {
+  position: absolute; inset: -14%;
+  width: auto; height: auto;
+  overflow: visible;
+  animation: ring-breathe 6s ease-in-out infinite;
 }
-/* Once the menu is out, the wave has said what it had to say. */
-.truck-hotspot.open::before { animation: none; opacity: 0; transition: opacity var(--speed) var(--ease); }
+.ring {
+  fill: none;
+  /* Weighed against the photograph rather than picked: the truck's bodywork is
+     a pale cream, and at 0.62/1.6 the line was there but not findable at
+     arm's length. Heavier than this and it stops looking like part of the
+     picture and starts looking stuck on top of it. */
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 1.8;
+  /* Turn about the middle of the viewBox, not the middle of the path's own
+     box: the path is morphing, so its box keeps changing, and rotating about
+     that would make the ring wander as it turned.
 
-@keyframes breathe-wave {
-  0%, 100% { transform: scale(0.82); opacity: 0.45; }
-  50%      { transform: scale(1.12); opacity: 0.9; }
+     This is also why the viewBox is 0 0 120 120 with the path drawn around
+     (60,60), rather than -60 -60 120 120 around the origin. Chrome resolves
+     transform-origin here to the user-space point (60,60) rather than to an
+     offset from the viewBox's corner, so with a viewBox starting at -60 the
+     ring rotated about a point 85 units off its own centre and orbited. With
+     the box starting at 0 0 both readings land on the same place. */
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  /* The photograph underneath runs from a bright sky to a dark wheel arch and
+     a 1.6px line loses against both. The shadow is what carries it over
+     either. */
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.65));
+  /* ring-wave is generated in shell.js — see there for why. */
+  animation: ring-wave 14s ease-in-out infinite, ring-spin 26s linear infinite;
+}
+
+/* Once the menu is out, the ring has said what it had to say.
+   The breathe animation has to be called off as well as the opacity set: it
+   animates opacity too, and a running animation outranks a transition, so on
+   its own the fade never happened and the ring sat there at whatever the
+   breathe was mid-way through. */
+.truck-hotspot.open .hotspot-ring {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--speed) var(--ease);
+}
+
+@keyframes ring-spin   { to { transform: rotate(360deg); } }
+@keyframes ring-breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.72; }
+  50%      { transform: scale(1.06); opacity: 1; }
 }
 
 /*
@@ -264,18 +298,6 @@
   from { transform: scale(0.5) scaleY(0.94); opacity: 0.75; }
   to   { transform: scale(3.1) scaleY(0.82); opacity: 0; }
 }
-
-.scene-hint {
-  position: absolute; left: 50%; top: calc(65% + 52px); z-index: 3;
-  transform: translateX(-50%);
-  margin: 0;
-  font-size: var(--text-xs); letter-spacing: 0.18em; text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
-  transition: opacity var(--speed) var(--ease);
-  pointer-events: none;
-}
-.scene-hint.hidden { opacity: 0; }
 
 /* ── Radial menu ────────────────────────────────────────────── */
 /* A zero-size anchor; items are placed around it by --dx / --dy from script. */
@@ -677,7 +699,10 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
   .orb, .toast, .card, .scene-bg,
-  .truck-hotspot::before, .ripple::before, .ripple::after { animation: none !important; }
+  .hotspot-ring, .ring, .ripple::before, .ripple::after { animation: none !important; }
+  /* The ring stays — it is the only thing marking the tap target now that the
+     label is gone. It simply stops turning. */
+  .hotspot-ring { opacity: 1; transform: none; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
