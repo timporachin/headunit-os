@@ -223,46 +223,46 @@
 .scene-backdrop.open { opacity: 1; pointer-events: auto; }
 
 /*
- * The truck lights up rather than wearing a marker. The outline is the
- * vehicle's own silhouette, stroked and bloomed, with nothing filled — the
- * photograph shows through, and what says "press here" is that the thing you
- * are looking at is glowing.
+ * The truck lights up rather than wearing a marker. There is no line anywhere:
+ * three blurred strokes of the vehicle's own silhouette, wide and faint to
+ * narrow and slightly less faint, so what you see is a brightening around the
+ * truck with no edge to locate. White rather than the accent colour — this is
+ * light, and light has no hue of its own here.
  *
- * The bloom is a filter on a path that never moves, so it rasterises once and
- * is reused. The pulses that do move carry no filter, only a transform, which
- * keeps the animation on the compositor.
+ * No edge also means the trace not being perfect stops mattering. It is a
+ * hand-made silhouette snapped onto the photograph's own gradients, and it is
+ * within a few pixels, not exact.
+ *
+ * The blurs sit on strokes that never move, so they rasterise once. Only the
+ * pulses animate, and they carry a transform, which stays on the compositor.
  */
-.aura-glow {
+.haze, .pulse {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.2;
+  stroke: #ffffff;
   stroke-linejoin: round;
-  opacity: 0.95;
-  filter: drop-shadow(0 0 4px var(--accent))
-          drop-shadow(0 0 12px var(--accent))
-          drop-shadow(0 0 26px #2f7de0);
 }
+.haze-wide { stroke-width: 34; opacity: 0.10; filter: blur(11px); }
+.haze-mid  { stroke-width: 18; opacity: 0.13; filter: blur(6px); }
+.haze-near { stroke-width: 8;  opacity: 0.15; filter: blur(3px); }
 
-/* Three copies of the same silhouette swelling outward and fading, a third of
-   a cycle apart so one is always in flight. Scaling a shape about its own
-   centre makes it grow along its own outline, which is what reads as light
-   coming off the truck rather than a box expanding around it. */
-.aura-pulse {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.4;
-  stroke-linejoin: round;
+/* Three copies of the silhouette swelling outward and fading, a third of a
+   cycle apart so one is always in flight. Scaling a shape about its own centre
+   makes it grow along its own outline, which is what reads as light coming off
+   the truck rather than a box expanding around it. */
+.pulse {
+  stroke-width: 12;
   opacity: 0;
+  filter: blur(5px);
   transform-box: view-box;
-  transform-origin: 754px 686px;   /* the silhouette's centroid, in image pixels */
+  transform-origin: 751px 684px;   /* the silhouette's centroid, in image pixels */
   animation: aura-radiate 5s linear infinite;
 }
-.aura-pulse:nth-of-type(3) { animation-delay: 1.667s; }
-.aura-pulse:nth-of-type(4) { animation-delay: 3.333s; }
+.pulse-b { animation-delay: 1.667s; }
+.pulse-c { animation-delay: 3.333s; }
 
 @keyframes aura-radiate {
-  from { transform: scale(1);    opacity: 0.55; }
-  to   { transform: scale(1.16); opacity: 0; }
+  from { transform: scale(1);    opacity: 0.20; }
+  to   { transform: scale(1.14); opacity: 0; }
 }
 
 /* Once the menu is out, the glow has said what it had to say. */
@@ -289,7 +289,18 @@
   left: 26.5%; top: 47%;
   width: 46%; height: 40%;
   padding: 0; border: 0; border-radius: var(--radius-lg);
+}
+/* Every state pinned, not just the resting one. tokens.css styles `button`
+   generically, and `button:hover` (0,1,1) outranks a bare `.truck-hotspot`
+   (0,1,0) — so the hover background painted a --surface-hover rectangle across
+   the whole control. At 96px that was a smudge nobody saw. At 46% x 40% of the
+   screen it is a grey box over the truck, and on a touchscreen the hover state
+   sticks after a tap rather than going away. */
+.truck-hotspot,
+.truck-hotspot:hover,
+.truck-hotspot:active {
   background: transparent;
+  border: 0;
 }
 /* A target this big would otherwise sit over the backdrop and swallow the tap
    that closes the menu. */
@@ -719,12 +730,12 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-  .orb, .toast, .card, .scene-plate,
-  .aura-pulse, .ripple::before, .ripple::after { animation: none !important; }
+    .orb, .toast, .card, .scene-plate,
+  .pulse, .ripple::before, .ripple::after { animation: none !important; }
   /* The glow stays — it is the only thing marking the tap target now that the
      label is gone. Only the pulses coming off it stop. */
-  .aura-glow { opacity: 0.95; }
-  .aura-pulse { opacity: 0; }
+  .haze { opacity: 0.13; }
+  .pulse { opacity: 0; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
