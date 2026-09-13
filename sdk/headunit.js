@@ -31,16 +31,11 @@
      * reports `source: "simulated"` here — check it before you trust a number
      * on a screen a driver is looking at. */
     vehicle: { speed: null, unit: 'mph', gear: null, parked: true, source: 'unavailable' },
-    /* What the shell believes is playing. `source` says where that belief came
-     * from — 'unavailable' means nothing is connected, and the numbers beside it
-     * are nulls rather than a track stopped at 0:00. */
-    media: {
-      source: 'unavailable', state: 'none',
-      title: null, artist: null, album: null,
-      position: null, duration: null, positionAt: null,
-      canPlay: false, canPause: false, canNext: false, canPrevious: false,
-      sourceApp: null, trackKey: null, artUrl: null,
-    },
+    /* Shell preferences the driver set: units, the vehicle's name, and the
+     * home location if one is saved. Read them instead of shipping your own
+     * unit toggle — there should be one place on the head unit to change this,
+     * and it is the settings screen. */
+    settings: { units: { speed: 'mph', temp: 'F' }, vehicleName: null, location: null },
   };
 
   function emit(event, detail) {
@@ -76,7 +71,7 @@
         state.app = msg.payload.app;
         applyTheme(msg.payload.theme);
         if (msg.payload.vehicle) state.vehicle = msg.payload.vehicle;
-        if (msg.payload.media) state.media = msg.payload.media;
+        if (msg.payload.settings) state.settings = msg.payload.settings;
         handshake?.(headunit);
         emit('connect', headunit);
         break;
@@ -87,9 +82,9 @@
         state.vehicle = msg.payload;
         emit('vehicle', state.vehicle);
         break;
-      case 'media':
-        state.media = msg.payload;
-        emit('media', state.media);
+      case 'settings':
+        state.settings = msg.payload;
+        emit('settings', state.settings);
         break;
       case 'visibility':
         emit(msg.payload.visible ? 'foreground' : 'background', null);
@@ -111,7 +106,7 @@
     get connected() { return state.connected; },
     get theme() { return state.theme; },
     get vehicle() { return state.vehicle; },
-    get media() { return state.media; },
+    get settings() { return state.settings; },
     get app() { return state.app; },
 
     /** Run `fn` once the shell has answered — or immediately when standalone. */
@@ -141,13 +136,6 @@
 
     /** A brief message in the shell's own chrome, so it survives an app redraw. */
     toast(message, tone = 'info') { return post('toast', { message, tone }); },
-
-    /**
-     * Drive playback: 'play', 'pause', 'playpause', 'next' or 'previous'.
-     * The shell forwards it to whatever is actually playing. A phone may refuse
-     * — check `media.canNext` and friends before offering the button.
-     */
-    mediaCommand(command) { return post('mediaCommand', { command }); },
 
     /** The installed apps, for a page that wants to build its own launcher. */
     listApps() { return post('listApps', {}, true); },

@@ -1,0 +1,228 @@
+/*
+ * Weather.
+ *
+ * Two halves: what it is doing here, and where the rain is. The left column
+ * scrolls because a week of forecast will not fit; the map never does.
+ */
+
+body { height: 100%; overflow: hidden; }
+
+.wx { display: flex; flex-direction: column; height: 100vh; }
+.wx-body { flex: 1; display: flex; min-height: 0; }
+
+/* ── Alerts ─────────────────────────────────────────────────── */
+/* Top of the screen and full width, because this is the one thing here that
+   can change what somebody towing a trailer decides to do next. */
+/* Capped: three or four active alerts would otherwise push the map off the
+   bottom of the screen. They scroll instead of shrinking the thing you came
+   here to look at. */
+.alerts { flex: none; display: flex; flex-direction: column; max-height: 33vh; overflow-y: auto; }
+.alert {
+  padding: var(--gap-3) var(--gap-5);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 16%, var(--bg));
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+}
+.alert[data-severity="Severe"], .alert[data-severity="Extreme"] {
+  background: color-mix(in srgb, var(--alert) 20%, var(--bg));
+}
+.alert-head { display: flex; align-items: baseline; gap: var(--gap-3); }
+.alert-event { font-weight: 600; font-size: var(--text); }
+.alert-when { font-size: var(--text-xs); color: var(--ink-dim); margin-left: auto; white-space: nowrap; }
+.alert-headline {
+  margin: 2px 0 0; font-size: var(--text-sm); color: var(--ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.alert.open .alert-headline { white-space: normal; }
+.alert-detail {
+  margin: var(--gap-3) 0 0; font-size: var(--text-sm); line-height: 1.5;
+  color: var(--ink-dim); white-space: pre-wrap; max-height: 220px; overflow-y: auto;
+  -webkit-user-select: text; user-select: text;
+}
+
+/* ── The conditions column ──────────────────────────────────── */
+.side {
+  flex: none; width: 420px; min-width: 0;
+  padding: var(--gap-5); overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--bg-sunken);
+}
+.side h2 {
+  margin: 0 0 var(--gap-3); font-size: var(--text-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-faint);
+}
+.block { margin-top: var(--gap-6); }
+.placeholder { color: var(--ink-faint); font-size: var(--text-sm); }
+
+.now-main { display: flex; align-items: center; gap: var(--gap-4); }
+.now-glyph { flex: none; width: 76px; height: 76px; color: var(--accent); }
+.now-glyph svg { width: 100%; height: 100%; }
+.now-temp {
+  font-size: var(--text-3xl); font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.now-temp span { font-size: var(--text-lg); font-weight: 400; color: var(--ink-dim); }
+.now-desc { margin-top: var(--gap-1); font-size: var(--text-lg); color: var(--ink); }
+.now-place { margin: var(--gap-3) 0 0; font-size: var(--text-sm); color: var(--ink-dim); }
+
+.now-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-3);
+  margin: var(--gap-5) 0 0; padding: 0;
+}
+.now-stats > div {
+  padding: var(--gap-3); border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--surface);
+}
+.now-stats dt { font-size: var(--text-xs); color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; }
+.now-stats dd { margin: var(--gap-1) 0 0; font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+
+/* Twelve hours side by side would be unreadable, so it scrolls sideways —
+   the one place in this OS where that is the right answer. */
+.hours { display: flex; gap: var(--gap-2); overflow-x: auto; padding-bottom: var(--gap-2); }
+.hour {
+  flex: none; width: 74px; padding: var(--gap-3) var(--gap-2);
+  text-align: center; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--surface);
+}
+.hour .h-time { font-size: var(--text-xs); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.hour .h-glyph { width: 28px; height: 28px; margin: var(--gap-2) auto; color: var(--accent); }
+.hour .h-glyph svg { width: 100%; height: 100%; }
+.hour .h-temp { font-size: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.hour .h-pop { font-size: var(--text-xs); color: var(--accent); font-variant-numeric: tabular-nums; min-height: 1.2em; }
+
+.days { display: flex; flex-direction: column; gap: var(--gap-2); }
+.day {
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-3); border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--surface);
+}
+.day .d-name { flex: 1; min-width: 0; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day .d-glyph { flex: none; width: 26px; height: 26px; color: var(--accent); }
+.day .d-glyph svg { width: 100%; height: 100%; }
+.day .d-pop { flex: none; width: 46px; text-align: right; font-size: var(--text-xs); color: var(--accent); font-variant-numeric: tabular-nums; }
+.day .d-temps { flex: none; width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+.day .d-temps .lo { color: var(--ink-faint); }
+
+/* ── Map and radar ──────────────────────────────────────────── */
+.map-wrap { flex: 1; position: relative; min-width: 0; }
+#map { position: absolute; inset: 0; background: var(--bg-sunken); }
+
+/* OpenStreetMap ships one bright cartography. Rather than a second tile
+   source, the base layer gets its own pane so night can darken it without
+   touching the radar sitting on top — inverting both would turn rain white. */
+.leaflet-basemap-pane { transition: filter var(--speed) var(--ease); }
+:root[data-theme="night"] .leaflet-basemap-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(1.05) saturate(0.65);
+}
+
+/* Leaflet's own controls are built for a mouse: 30px, well under the floor
+   this OS holds everything else to. Its rule is `.leaflet-touch .leaflet-bar a`,
+   so matching that specificity is what makes this stick — a plain
+   `.leaflet-control-zoom a` loses to it and silently leaves a 30px target. */
+.leaflet-bar a,
+.leaflet-touch .leaflet-bar a {
+  width: var(--touch-min); height: var(--touch-min);
+  line-height: var(--touch-min); font-size: 22px;
+  background: var(--glass); color: var(--ink);
+  border: 1px solid var(--glass-edge);
+  backdrop-filter: blur(14px);
+}
+.leaflet-bar a:hover,
+.leaflet-touch .leaflet-bar a:hover { background: var(--surface-hover); color: var(--accent); }
+.leaflet-bar { border: 0; box-shadow: var(--shadow); }
+.leaflet-container { font-family: var(--font); background: var(--bg-sunken); }
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--ink-faint); font-size: 11px;
+}
+.leaflet-control-attribution a { color: var(--ink-dim); }
+
+.radar-bar {
+  position: absolute; left: var(--gap-4); right: var(--gap-4); bottom: var(--gap-4);
+  z-index: 500; display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  background: var(--glass); backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-edge); border-radius: var(--radius-pill);
+  box-shadow: var(--shadow);
+}
+.round {
+  flex: none; width: var(--touch-min); height: var(--touch-min); padding: 0;
+  display: grid; place-items: center; border-radius: 50%;
+  background: transparent; border-color: var(--glass-edge); color: var(--ink-dim);
+}
+.round:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+.round svg { width: 22px; height: 22px; fill: currentColor; }
+#recenter svg { fill: none; }
+
+.frame-time {
+  flex: none; min-width: 68px; text-align: right;
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+/* The frame being shown is in the future when it comes from the nowcast. */
+.frame-time[data-forecast="true"] { color: var(--accent); }
+
+#scrub {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; min-width: 0; height: var(--touch-min);
+  background: transparent; cursor: pointer;
+}
+#scrub::-webkit-slider-runnable-track {
+  height: 6px; border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--ink-faint) 45%, transparent);
+}
+#scrub::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 26px; height: 26px; margin-top: -10px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--bg-raised);
+}
+#scrub::-moz-range-track { height: 6px; border-radius: var(--radius-pill); background: var(--line-strong); }
+#scrub::-moz-range-thumb { width: 26px; height: 26px; border: 3px solid var(--bg-raised); border-radius: 50%; background: var(--accent); }
+
+/* ── Status and the location prompt ─────────────────────────── */
+.status {
+  flex: none; margin: 0; padding: var(--gap-2) var(--gap-5);
+  border-top: 1px solid var(--line); background: var(--bg-sunken);
+  font-size: var(--text-xs); color: var(--ink-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.status[data-tone="alert"] { color: var(--alert); }
+
+.locate {
+  position: fixed; inset: 0; z-index: 900;
+  display: grid; place-items: center;
+  padding: var(--gap-5);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
+.locate-card {
+  width: 100%; max-width: 460px; padding: var(--gap-6);
+  background: var(--glass); border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.locate-card h2 { margin: 0 0 var(--gap-3); font-size: var(--text-xl); }
+.locate-card p { margin: 0 0 var(--gap-5); color: var(--ink-dim); font-size: var(--text-sm); line-height: 1.5; }
+.locate-card > button { width: 100%; }
+.locate-manual { display: flex; gap: var(--gap-2); margin-top: var(--gap-4); }
+.locate-manual input {
+  flex: 1; min-width: 0; min-height: var(--touch-min); padding: 0 var(--gap-3);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); color: var(--ink);
+  -webkit-user-select: text; user-select: text;
+}
+.locate-manual button { flex: none; }
+.locate-hint { margin: var(--gap-3) 0 0 !important; font-size: var(--text-xs); color: var(--ink-faint); }
+
+/* ── Narrow screens ─────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .wx-body { flex-direction: column; }
+  .side { width: auto; max-height: 46%; border-right: 0; border-bottom: 1px solid var(--line); }
+  .map-wrap { flex: 1; min-height: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-basemap-pane { transition: none; }
+}

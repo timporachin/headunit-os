@@ -1,8 +1,20 @@
 node_modules/
 
-# Apps are checked out here rather than vendored into this repo's history, so
-# each one stays on its own upstream and can be pulled independently.
-vendor/
+# Third-party app checkouts live here rather than in this repo's history, so
+# each stays on its own upstream and can be pulled independently.
+#
+# Anchored to the root on purpose: an unanchored "vendor/" matches a directory
+# of that name at ANY depth, so it also swallows an app's OWN bundled library —
+# apps/<id>/vendor/... — and ships that app missing code it loads at runtime.
+# That has already happened twice. Leave the slash on.
+/vendor/
 
 *.log
 .DS_Store
+
+# App dependencies are installed per app, not committed.
+apps/*/node_modules/
+
+# Credentials an app stores at runtime, written by the app itself at mode 600.
+# The Family app keeps a location-service token here; it must never be committed.
+apps/*/secrets.json

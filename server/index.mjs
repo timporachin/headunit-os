@@ -12,7 +12,6 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { loadRegistry, ROOT } from './registry.mjs';
 import * as supervisor from './supervisor.mjs';
-import * as media from './media.mjs';
 
 const PORT = Number(process.env.PORT) || 4100;
 
@@ -21,6 +20,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
+  // Without these the home screen's photograph 404s.
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
 };
 
 // URL prefix -> directory on disk. The SDK and the design tokens are published
@@ -39,38 +40,6 @@ const json = (res, code, body) => {
   res.end(text);
 };
 
-/** Read a JSON request body, with a cap so a stuck client cannot grow forever. */
-async function readJson(req, limit = 8_192) {
-  let body = '';
-  for await (const chunk of req) {
-    body += chunk;
-    if (body.length > limit) throw new Error('request body too large');
-  }
-  return body ? JSON.parse(body) : {};
-}
-
-/**
- * Push media state to the shell as it changes.
- *
- * Server-sent events rather than polling: what is playing changes while nobody
- * is touching the screen — a track ends, the driver hits pause on the phone —
- * and a poll fast enough to feel live would be a poll running all the time.
- */
-function mediaEvents(req, res) {
-  res.writeHead(200, {
-    'content-type': 'text/event-stream; charset=utf-8',
-    'cache-control': 'no-cache',
-    connection: 'keep-alive',
-  });
-  const push = (state) => res.write(`data: ${JSON.stringify(state)}\n\n`);
-  push(media.getState());
-  const unsubscribe = media.subscribe(push);
-  // A stream with nothing to say for minutes at a time is a stream something
-  // in the middle will eventually decide is dead.
-  const heartbeat = setInterval(() => res.write(': ping\n\n'), 25_000);
-  req.on('close', () => { unsubscribe(); clearInterval(heartbeat); });
-}
-
 async function sendFile(res, file) {
   const info = await stat(file).catch(() => null);
   if (!info?.isFile()) return false;
@@ -85,7 +54,7 @@ async function sendFile(res, file) {
 
 /** The launcher's view of an app: its manifest plus its live run state. */
 const publicApp = (app) => ({
-  id: app.id, name: app.name, icon: app.icon,
+  id: app.id, name: app.name, icon: app.icon, iconSvg: app.iconSvg,
   description: app.description, kind: app.kind,
   immersive: app.immersive, boot: app.boot,
   ...supervisor.describe(app),
@@ -121,37 +90,6 @@ async function handleApi(req, res, url) {
       return json(res, 200, { id: app.id, lines: supervisor.logsFor(app.id) });
     }
     if (!action) return json(res, 200, publicApp(app));
-  }
-
-  if (segments[0] === 'media') {
-    const action = segments[1];
-    if (!action) return json(res, 200, media.getState());
-    if (action === 'events') return mediaEvents(req, res);
-
-    if (action === 'command' && req.method === 'POST') {
-      try {
-        const { command } = await readJson(req);
-        media.command(String(command));
-        return json(res, 200, media.getState());
-      } catch (err) {
-        // A phone that will not skip is news for the driver, not a server fault.
-        return json(res, 400, { error: err.message });
-      }
-    }
-
-    if (action === 'art') {
-      const art = media.artFor(url.searchParams.get('key') || '');
-      if (!art) return json(res, 404, { error: 'no artwork for that track' });
-      res.writeHead(200, {
-        'content-type': art.type,
-        'content-length': art.body.length,
-        // The key is the track's identity, so the bytes behind it never change.
-        'cache-control': 'public, max-age=86400, immutable',
-      });
-      return res.end(art.body);
-    }
-
-    if (action === 'logs') return json(res, 200, { lines: media.logs() });
   }
 
   if (segments[0] === 'reload' && req.method === 'POST') {
@@ -195,11 +133,8 @@ const server = createServer(async (req, res) => {
 registry = await loadRegistry();
 for (const problem of registry.errors) console.warn(`[registry] ${problem}`);
 
-const mediaMode = media.start();
-
 server.listen(PORT, () => {
   console.log(`\n  Head unit shell   http://localhost:${PORT}`);
-  console.log(`  media source: ${mediaMode}`);
   console.log(`  ${registry.apps.length} app(s) installed: ${registry.apps.map((a) => a.id).join(', ') || 'none'}\n`);
   for (const app of registry.apps.filter((a) => a.boot === 'eager')) {
     supervisor.start(app).catch((err) => console.warn(`[${app.id}] ${err.message}`));

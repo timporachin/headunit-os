@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weather</title>
+<!-- The OS look, pulled from the shell so this app inherits the theme and the
+     touch sizes rather than inventing its own. -->
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<!-- Vendored, not from a CDN: the head unit boots in a driveway with no signal,
+     and the map library must not be a second thing that can fail to arrive. -->
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="weather.css">
+</head>
+<body>
+
+<div class="wx" id="wx">
+
+  <div class="alerts" id="alerts" hidden></div>
+
+  <div class="wx-body">
+
+    <aside class="side" id="side">
+      <section class="now" id="now">
+        <p class="placeholder">Waiting for a location…</p>
+      </section>
+
+      <section class="block" id="hourlyBlock" hidden>
+        <h2>Next twelve hours</h2>
+        <div class="hours" id="hours"></div>
+      </section>
+
+      <section class="block" id="dailyBlock" hidden>
+        <h2>The week</h2>
+        <div class="days" id="days"></div>
+      </section>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+
+      <div class="radar-bar" id="radarBar" hidden>
+        <button id="playBtn" class="round" aria-label="Pause radar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="5" width="3.6" height="14" rx="1"/><rect x="13.4" y="5" width="3.6" height="14" rx="1"/></svg>
+        </button>
+        <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="Radar frame">
+        <time id="frameTime" class="frame-time">--:--</time>
+        <button id="recenter" class="round" aria-label="Back to the truck">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <p class="status" id="status"></p>
+
+  <!-- Shown only when there is nowhere to ask about. -->
+  <div class="locate" id="locate" hidden>
+    <div class="locate-card">
+      <h2>Where are we?</h2>
+      <p>The weather needs a position. Set a home location in Settings and every
+         screen will use it, or give this one a position on its own.</p>
+      <button id="locGps" class="primary">Use GPS</button>
+      <div class="locate-manual">
+        <input type="text" id="locLat" inputmode="decimal" placeholder="Latitude" aria-label="Latitude">
+        <input type="text" id="locLon" inputmode="decimal" placeholder="Longitude" aria-label="Longitude">
+        <button id="locSave">Save</button>
+      </div>
+      <p class="locate-hint" id="locHint"></p>
+    </div>
+  </div>
+
+</div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<script src="weather.js"></script>
+</body>
+</html>

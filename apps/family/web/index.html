@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Family</title>
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="family.css">
+</head>
+<body>
+
+<div class="fam" id="fam">
+
+  <!-- Shown for as long as the source is making its data up. A family map that
+       might not be real has to say so, plainly and permanently. -->
+  <div class="synthetic" id="synthetic" hidden>
+    <strong>Demo data.</strong> These are invented people in invented places. Sign in to a real source to see your circle.
+  </div>
+
+  <div class="fam-body">
+
+    <aside class="side" id="side">
+      <header class="side-head">
+        <select id="circle" class="circle" aria-label="Circle" hidden></select>
+        <button type="button" id="refresh" class="ghost">Refresh</button>
+      </header>
+      <div class="people" id="people"></div>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+      <button type="button" id="fitAll" class="map-btn" hidden>Show everyone</button>
+    </main>
+  </div>
+
+  <p class="status" id="status"></p>
+
+  <!-- Setup, shown until a source is signed in. -->
+  <div class="setup" id="setup" hidden>
+    <div class="setup-card">
+      <h2>Connect a location source</h2>
+
+      <div class="tabs" id="tabs" role="tablist">
+        <button type="button" role="tab" data-mode="password" aria-selected="true">Email &amp; password</button>
+        <button type="button" role="tab" data-mode="token" aria-selected="false">Access token</button>
+      </div>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="pane" data-pane="password">
+          <p class="note">
+            Life360 only accepts a password here for accounts <strong>without a verified
+            phone number</strong>. If yours has one, this will fail no matter what you
+            type — use the access token tab instead.
+          </p>
+          <input type="email" id="username" placeholder="Life360 email" autocomplete="off" aria-label="Life360 email">
+          <input type="password" id="password" placeholder="Password" autocomplete="off" aria-label="Password">
+        </div>
+
+        <div class="pane" data-pane="token" hidden>
+          <p class="note">
+            Sign in at <strong>life360.com</strong> in a browser, open the developer tools,
+            and copy the value of the <code>LIFE360_AUTH_TOKEN</code> cookie. This is what
+            accounts with a verified phone number have to use.
+          </p>
+          <input type="password" id="token" placeholder="LIFE360_AUTH_TOKEN value" autocomplete="off" aria-label="Access token">
+        </div>
+
+        <button type="submit" id="signIn" class="primary">Sign in</button>
+      </form>
+
+      <p class="setup-problem" id="setupProblem" hidden></p>
+
+      <p class="note fine">
+        Your password is exchanged for a token once and never stored. Only the token is
+        kept, in <code>apps/family/secrets.json</code>, readable only by you.
+        Life360 has no public API and has blocked outside clients before; if this stops
+        working one day, that is why.
+      </p>
+
+      <button type="button" id="useDemo" class="ghost wide">Look around with demo data instead</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<script src="family.js"></script>
+</body>
+</html>

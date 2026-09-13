@@ -14,6 +14,8 @@ import { stat } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 
+const IS_WINDOWS = process.platform === 'win32';
+
 const FIRST_PORT = 4200;
 const LOG_LINES = 200;
 
@@ -68,12 +70,21 @@ function probe(host, port) {
   });
 }
 
-/** Resolve once something is listening on `port`, or reject at the deadline. */
+/**
+ * Resolve once something is listening on `port`, or reject at the deadline.
+ *
+ * `isDead` returns falsy while the app is still a going concern, or a string
+ * explaining why it is not — so a launch that failed for a knowable reason says
+ * so instead of reporting a timeout.
+ */
 function waitForPort(port, timeoutMs, isDead) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const attempt = async () => {
-      if (isDead?.()) return reject(new Error('the app exited before it served anything'));
+      const dead = isDead?.();
+      if (dead) {
+        return reject(new Error(typeof dead === 'string' ? dead : 'the app exited before it served anything'));
+      }
       const answered = await Promise.all(LOOPBACK.map((host) => probe(host, port)));
       if (answered.some(Boolean)) return resolve();
       if (Date.now() > deadline) {
@@ -161,10 +172,41 @@ export async function start(app) {
       if (app.kind === 'static') {
         instance.server = await serveStatic(app.serveDir, instance.port);
       } else {
-        let exited = false;
+        /*
+         * A process app whose folder is missing is the normal state of a fresh
+         * copy of this repo: everything under vendor/ is fetched by setup.cmd,
+         * not tracked here. Check before spawning, because spawn() reports a
+         * missing cwd by EMITTING 'error' rather than throwing — and an
+         * unhandled 'error' on a ChildProcess takes this whole shell down with
+         * it. Tapping the globe on an unset-up machine used to kill the head
+         * unit outright.
+         */
+        const folder = await stat(app.cwd).catch(() => null);
+        if (!folder?.isDirectory()) {
+          const where = path.relative(process.cwd(), app.cwd) || app.cwd;
+          throw new Error(`its folder "${where}" is not there. Run setup.cmd to fetch the vendored apps.`);
+        }
+
+        let exitReason = null;
         const proc = spawn(app.start, {
           cwd: app.cwd,
           shell: true,
+          /* shell:true means the child is a shell wrapper and the real server is
+           * ITS child, so killing the wrapper alone orphans the server — it keeps
+           * running and keeps its port. How you reach the whole tree is entirely
+           * platform-specific, and getting that wrong is what this now avoids:
+           *
+           *   POSIX  — detached makes the child a process-group leader, so the
+           *            group can be signalled at once. See killTree().
+           *   Windows — has no POSIX process groups. There `detached` means
+           *            something unrelated: the child gets its own console
+           *            WINDOW. Setting it there produced a stray black window
+           *            and no tree kill at all, so the orphan survived and a
+           *            second Vite started against the same dependency cache.
+           */
+          detached: !IS_WINDOWS,
+          // Never surface a console window for an app the shell is supervising.
+          windowsHide: true,
           env: {
             ...process.env,
             HEADUNIT_SHELL_ORIGIN: SHELL_ORIGIN,
@@ -176,14 +218,20 @@ export async function start(app) {
         instance.proc = proc;
         proc.stdout.on('data', (d) => record(instance, d));
         proc.stderr.on('data', (d) => record(instance, d));
+        /* Belt and braces behind the cwd check above: spawn reports every other
+         * failure the same way, and any of them unhandled is fatal here. */
+        proc.on('error', (err) => {
+          exitReason = `could not be started: ${err.message}`;
+          record(instance, exitReason);
+        });
         proc.on('exit', (code) => {
-          exited = true;
+          exitReason = exitReason || `exited with code ${code}`;
           if (instance.state !== 'stopped') {
             instance.state = 'failed';
-            instance.error = `exited with code ${code}`;
+            instance.error = exitReason;
           }
         });
-        await waitForPort(instance.port, app.startTimeoutMs, () => exited);
+        await waitForPort(instance.port, app.startTimeoutMs, () => exitReason);
       }
       instance.state = 'ready';
       return { url: `http://localhost:${instance.port}` };
@@ -199,11 +247,39 @@ export async function start(app) {
   return instance.launching;
 }
 
+/**
+ * End the app and everything it started, whatever the platform.
+ *
+ * This used to signal the process group and treat a thrown error as "no group,
+ * fall back to killing the wrapper". On Windows that throw is guaranteed —
+ * there are no process groups — so the fallback ran every time and looked like
+ * it was working while it silently orphaned the server. Choosing the branch on
+ * purpose, rather than discovering it from an exception, is the whole fix.
+ */
+function killTree(proc) {
+  if (!proc?.pid) return;
+
+  if (IS_WINDOWS) {
+    // /T takes the whole child tree, /F does not ask nicely. Fire and forget:
+    // the app is going away either way and nothing waits on the result.
+    spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' })
+      .on('error', () => { try { proc.kill(); } catch { /* already gone */ } });
+    return;
+  }
+
+  try {
+    process.kill(-proc.pid, 'SIGTERM');
+  } catch {
+    // Already reaped, or never became a group leader.
+    try { proc.kill(); } catch { /* already gone */ }
+  }
+}
+
 export function stop(id) {
   const instance = instances.get(id);
   if (!instance) return false;
   instance.state = 'stopped';
-  instance.proc?.kill();
+  killTree(instance.proc);
   instance.server?.close();
   instances.delete(id);
   return true;

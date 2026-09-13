@@ -1,0 +1,11 @@
+{
+  "id": "weather",
+  "name": "Weather",
+  "icon": "🌦",
+  "iconSvg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 5.5a3.2 3.2 0 1 1 2.6 5\"/><path d=\"M4.4 4.2l.9.9M2 8.4h1.3M8 2v1.3\"/><path d=\"M17.2 11.6a3.6 3.6 0 0 0-6.9-1A3 3 0 0 0 10.6 16h6.4a2.7 2.7 0 0 0 .2-5.4z\"/><path d=\"M9.5 19l-.8 2M13.5 19l-.8 2M17.5 19l-.8 2\"/></svg>",
+  "description": "Conditions, forecast and animated rain radar from the National Weather Service and RainViewer.",
+  "kind": "static",
+  "dir": "web",
+  "immersive": false,
+  "boot": "on-demand"
+}
