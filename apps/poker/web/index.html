@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poker</title>
+<link rel="stylesheet" href="http://localhost:4100/design/tokens.css">
+<link rel="stylesheet" href="poker.css">
+</head>
+<body>
+
+<!--
+  Two games, one deck, one hand evaluator. Nothing here talks to a server:
+  the whole thing runs in this page, so it works in a driveway with no signal
+  and nobody else's cookie policy can break it.
+
+  The rules live in engine/ and are tested from the command line — every one of
+  the 2,598,960 five-card hands is ranked and counted against the published
+  distribution before any of this is allowed to draw a card.
+-->
+
+<main class="menu" id="menu">
+  <h1>Poker</h1>
+  <p class="sub">Against the house. No network, no account, no waiting for anyone.</p>
+  <div class="games">
+    <button class="game" id="playHoldem" type="button">
+      <span class="game-name">Texas Hold&rsquo;em</span>
+      <span class="game-blurb">Four opponents, no limit. Blinds 25 / 50, everyone starts with 5,000.</span>
+    </button>
+    <button class="game" id="playOfc" type="button" disabled>
+      <span class="game-name">Open Face Chinese</span>
+      <span class="game-blurb">Pineapple. Coming in the next push — the hand evaluator it needs is already done.</span>
+    </button>
+  </div>
+</main>
+
+<section class="felt" id="felt" hidden>
+  <div class="felt-bar">
+    <button class="leave" id="leave" type="button">← Games</button>
+    <span class="blinds" id="blinds"></span>
+    <span class="hand-no" id="handNo"></span>
+  </div>
+
+  <div class="seats" id="seats"></div>
+
+  <div class="middle">
+    <div class="pot" id="pot"></div>
+    <div class="board" id="board"></div>
+    <div class="verdict" id="verdict" hidden></div>
+  </div>
+
+  <div class="you" id="you"></div>
+
+  <div class="actions" id="actions" hidden>
+    <div class="sizer" id="sizer" hidden>
+      <input type="range" id="betSlider" aria-label="Bet size">
+      <div class="sizer-row">
+        <output id="betAmount"></output>
+        <button data-size="0.5" type="button">½ pot</button>
+        <button data-size="1" type="button">Pot</button>
+        <button data-size="max" type="button">All in</button>
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="btnFold" type="button">Fold</button>
+      <button id="btnCheck" type="button">Check</button>
+      <button id="btnCall" type="button">Call</button>
+      <button id="btnRaise" class="primary" type="button">Raise</button>
+    </div>
+  </div>
+
+  <div class="next" id="next" hidden>
+    <button class="primary" id="btnNext" type="button">Next hand</button>
+  </div>
+
+  <div class="busted" id="busted" hidden>
+    <p id="bustedText"></p>
+    <button class="primary" id="btnRebuy" type="button">Sit down again</button>
+  </div>
+</section>
+
+<script src="http://localhost:4100/sdk/headunit.js"></script>
+<script type="module" src="app.mjs"></script>
+</body>
+</html>
