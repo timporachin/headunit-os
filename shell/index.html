@@ -63,14 +63,24 @@
         installed rather than a fixed set.
 
         The glow carries the whole affordance — there is no label. #truckOutline
-        below is a traced silhouette of THIS photograph, in its own pixel
-        coordinates, so the SVG shares the image's viewBox and its "slice"
-        fitting is the SVG spelling of object-fit: cover. Both live inside
-        .scene-plate so the drift animation moves them as one object; on
-        separate layers the glow slides off the truck within seconds.
+        below is the vehicle's exact silhouette, read from the alpha channel of
+        a cut-out of THIS photograph and kept in its own pixel coordinates. The
+        SVG therefore shares the image's viewBox, and its "slice" fitting is the
+        SVG spelling of object-fit: cover. Both live inside .scene-plate so the
+        drift animation moves them as one object; on separate layers the glow
+        slides off the truck within seconds.
 
-        Replacing assets/truck.jpg invalidates this path — it would have to be
-        re-traced against the new photograph.
+        113 points, within 0.39px of the alpha edge on average. pathLength="1000"
+        makes the dash animation work in thousandths of the perimeter, so this
+        path can be replaced without retiming anything — swapping it changed the
+        real geometry from 1742 to 2012 units and the animation did not move.
+
+        assets/truck-mask.png is where it came from: the cut-out's alpha as a
+        1-bit image, 2KB, kept so the path can be regenerated rather than
+        re-traced. The shell never loads it.
+
+        Replacing assets/truck.jpg invalidates it — the silhouette would have to
+        be re-cut against the new photograph.
       -->
       <div class="scene">
         <div class="scene-plate">
@@ -78,7 +88,7 @@
           <svg class="scene-aura" viewBox="0 0 1537 1023"
                preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
             <defs>
-              <path id="truckOutline" pathLength="1000" d="M701.9 526.4C721.9 519.6 746.8 514.9 769.3 512.1C791.8 509.3 817.8 509.1 837.1 509.4C856.4 509.7 872.8 511.5 885.3 514.1C897.8 516.7 905.1 519.4 912.0 525.2C918.9 531.0 922.2 539.6 926.8 549.0C931.4 558.4 933.5 572.0 939.5 581.6C945.5 591.2 952.2 600.8 962.7 606.7C973.2 612.6 989.2 613.6 1002.8 616.8C1016.4 620.0 1033.8 620.6 1044.5 625.9C1055.2 631.2 1062.8 639.9 1067.2 648.4C1071.6 656.9 1070.5 668.4 1070.9 676.7C1071.3 685.0 1070.0 692.1 1069.8 698.4C1069.6 704.7 1070.4 709.3 1069.9 714.5C1069.4 719.7 1069.2 724.8 1066.9 729.5C1064.6 734.2 1060.4 738.2 1055.8 742.9C1051.2 747.6 1044.4 751.8 1039.5 757.8C1034.6 763.8 1030.3 771.9 1026.5 779.0C1022.7 786.1 1020.5 795.3 1016.6 800.7C1012.7 806.1 1008.2 811.0 1003.2 811.6C998.2 812.2 991.3 808.9 986.6 804.2C981.9 799.5 978.1 789.4 974.9 783.2C971.7 777.0 971.1 770.0 967.6 766.8C964.1 763.6 959.6 764.8 953.8 764.0C947.9 763.2 939.6 763.3 932.5 762.3C925.4 761.3 917.4 757.7 911.0 758.2C904.6 758.7 899.1 760.3 894.2 765.5C889.3 770.7 886.5 780.2 881.5 789.3C876.5 798.4 871.6 810.5 863.9 820.1C856.2 829.7 846.0 840.6 835.1 847.1C824.2 853.6 809.6 859.4 798.3 859.2C786.9 859.0 774.7 853.0 767.0 845.8C759.3 838.5 755.9 823.9 752.0 815.7C748.1 807.5 748.4 799.6 743.7 796.7C739.0 793.8 733.3 797.1 724.0 798.4C714.7 799.6 700.8 803.5 687.7 804.2C674.6 804.9 658.5 803.6 645.5 802.5C632.5 801.4 619.7 797.7 609.6 797.4C599.5 797.1 591.8 797.5 584.8 800.6C577.8 803.7 573.8 810.5 567.6 816.2C561.4 821.9 555.5 830.2 547.7 834.9C539.9 839.6 529.8 843.8 520.9 844.4C512.0 845.0 501.8 842.7 494.3 838.3C486.8 833.9 481.1 825.8 476.1 818.1C471.1 810.4 468.2 800.2 464.1 792.0C460.0 783.8 455.2 775.9 451.3 769.1C447.4 762.3 442.8 756.9 440.5 751.0C438.2 745.1 438.3 739.6 437.8 733.8C437.3 728.0 437.9 721.9 437.7 716.0C437.4 710.1 435.9 704.0 436.3 698.2C436.7 692.4 438.1 686.6 439.9 681.1C441.7 675.6 444.7 670.3 447.2 665.2C449.7 660.1 450.6 655.6 454.7 650.4C458.8 645.2 463.0 639.7 471.6 634.0C480.2 628.3 492.5 621.7 506.4 616.4C520.3 611.1 538.7 607.8 555.0 602.1C571.3 596.5 588.4 590.7 604.1 582.5C619.8 574.3 632.8 562.1 649.1 552.8C665.4 543.4 681.9 533.2 701.9 526.4Z"/>
+              <path id="truckOutline" pathLength="1000" d="M1068 628L1064 622L942 615L940 610L947 604L964 603L968 596L967 592L962 588L947 588L943 580L935 580L933 578L924 530L916 520L911 518L854 513L847 506L842 506L834 512L802 511L794 505L787 505L782 511L755 511L752 506L741 506L731 512L716 512L715 509L713 511L709 508L701 508L689 515L673 516L667 512L657 514L653 520L645 522L633 530L584 600L517 608L508 612L465 620L450 644L449 652L452 702L457 707L441 714L439 719L440 733L445 737L447 749L454 757L469 761L468 793L472 813L481 831L489 839L499 843L527 844L549 839L559 830L570 807L571 798L575 794L652 791L668 793L688 803L697 803L712 796L727 797L737 801L742 807L742 814L746 822L746 851L816 851L829 840L837 825L843 797L843 771L847 767L863 766L875 776L897 781L906 778L912 771L926 763L940 763L946 773L951 772L951 767L954 764L960 764L967 767L971 772L977 802L985 813L994 815L1023 813L1032 794L1035 779L1034 735L1042 731L1072 731L1074 729L1075 711L1069 708L1072 699L1070 677L1073 671L1073 651Z"/>
             </defs>
             <use class="haze haze-wide"   href="#truckOutline"/>
             <use class="haze haze-mid"    href="#truckOutline"/>
