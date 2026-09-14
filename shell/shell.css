@@ -182,17 +182,32 @@
 
 .scene { position: relative; width: 100%; height: 100%; overflow: hidden; }
 
-.scene-bg {
+/* The photograph and the glow drawn over it are one object.
+   The drift used to live on the image; with an outline traced onto the
+   photograph it has to move both, or the glow walks off the truck within a
+   few seconds. Same reason the SVG carries the image's own viewBox and
+   preserveAspectRatio="xMidYMid slice" — "slice" is what object-fit: cover
+   is called in SVG, so the two crop identically at every window shape. */
+.scene-plate {
   position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-  user-select: none; -webkit-user-drag: none;
-  /* A slow drift stops the home screen reading as a still photograph of a
-     screen. It moves transform only, so it never touches layout. */
   transform-origin: 50% 42%;
   animation: idle-drift 26s ease-in-out infinite alternate;
+  /* Decoration, all of it. Without this the drifting photograph took the
+     pointerup of a tap whose pointerdown had gone to the button above it, and
+     the browser then fired the click on their common ancestor instead of on
+     the button — so tapping the truck did nothing at all. */
+  pointer-events: none;
 }
+.scene-bg, .scene-aura {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+.scene-bg {
+  object-fit: cover;
+  user-select: none; -webkit-user-drag: none;
+}
+.scene-aura { z-index: 1; overflow: visible; }
 @keyframes idle-drift {
   from { transform: scale(1.03) translate(0%, 0%); }
   to   { transform: scale(1.09) translate(-1.6%, -1%); }
@@ -208,37 +223,97 @@
 .scene-backdrop.open { opacity: 1; pointer-events: auto; }
 
 /*
- * Sits on the truck. There is no button here — a solid dot pinned to a
- * photograph reads as a control stuck on top of the picture. What is left is a
- * soft wave that breathes slowly, which is enough to say "something is here"
- * without pretending to be a widget, and a stronger ripple on tap.
+ * The truck lights up rather than wearing a marker. There is no line anywhere:
+ * three blurred strokes of the vehicle's own silhouette, wide and faint to
+ * narrow and slightly less faint, so what you see is a brightening around the
+ * truck with no edge to locate. White rather than the accent colour — this is
+ * light, and light has no hue of its own here.
  *
- * The target is larger than the wave it carries, because an invisible control
- * has to be forgiving to hit.
+ * No edge also means the trace not being perfect stops mattering. It is a
+ * hand-made silhouette snapped onto the photograph's own gradients, and it is
+ * within a few pixels, not exact.
+ *
+ * The blurs sit on strokes that never move, so they rasterise once. Only the
+ * light running round the outline animates, and it moves a dash offset rather
+ * than redrawing anything.
+ */
+.haze {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+}
+/* Thinned once the travelling light went in. The haze is now only the resting
+   trace that says where the truck is; the light is the thing you look at, and
+   it cannot read as light if it is competing with a bright standing glow. */
+.haze-wide { stroke-width: 34; opacity: 0.07; filter: blur(11px); }
+.haze-mid  { stroke-width: 18; opacity: 0.09; filter: blur(6px); }
+.haze-near { stroke-width: 8;  opacity: 0.10; filter: blur(3px); }
+
+/*
+ * A length of light running round the truck's own perimeter.
+ *
+ * The path carries pathLength="1000", so every number below is a thousandth of
+ * the outline rather than a user unit. Nothing has to measure the path, and
+ * swapping the silhouette for a better one later cannot break the timing — the
+ * dash maths does not know or care how long the real curve is.
+ *
+ * Three passes on one clock: a broad soft tail, a glow, and a thin bright core.
+ * The tail is phase-shifted so it ends where the core ends and trails behind it
+ * rather than running ahead — 170 thousandths at 7s a lap is 1.19s, taken off
+ * the cycle as a negative delay so nothing sits parked at the start on load.
+ */
+.chase {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  animation: chase 7s linear infinite;
+}
+.chase-tail { stroke-width: 16; opacity: 0.10; filter: blur(7px);   stroke-dasharray: 230 770; animation-delay: -5.81s; }
+.chase-glow { stroke-width: 10; opacity: 0.30; filter: blur(4px);   stroke-dasharray: 90 910; }
+.chase-core { stroke-width: 3;  opacity: 0.85; filter: blur(1.2px); stroke-dasharray: 60 940; }
+
+@keyframes chase { to { stroke-dashoffset: -1000; } }
+
+/* Once the menu is out, the glow has said what it had to say. */
+.scene:has(.truck-hotspot.open) .scene-aura {
+  opacity: 0.25;
+  transition: opacity var(--speed) var(--ease);
+}
+
+/*
+ * The control itself is invisible and covers the truck: the thing you see
+ * glowing is the thing you press. It is sized in percentages of the scene
+ * rather than traced, because the photograph is cover-cropped and drifting —
+ * a few percent of slop costs nothing on a target this large.
  */
 .truck-hotspot {
-  position: absolute; left: 50%; top: 65%; z-index: 3;
-  width: 96px; height: 96px;
-  transform: translate(-50%, -50%);
-  padding: 0; border: 0; border-radius: 50%;
+  position: absolute; z-index: 3;
+  /* Placed by edges, not centred with a transform. tokens.css gives every
+     button `transform: translateY(1px)` on :active, which REPLACES a centring
+     translate rather than adding to it — so on press the button jumped down
+     and right by half its own size, slid out from under the finger, and the
+     browser retargeted the click to the common ancestor. Tapping the truck
+     then did nothing at all. At 96px the jump was small enough to stay under
+     the finger and the bug stayed hidden; at this size it does not. */
+  left: 26.5%; top: 47%;
+  width: 46%; height: 40%;
+  padding: 0; border: 0; border-radius: var(--radius-lg);
+}
+/* Every state pinned, not just the resting one. tokens.css styles `button`
+   generically, and `button:hover` (0,1,1) outranks a bare `.truck-hotspot`
+   (0,1,0) — so the hover background painted a --surface-hover rectangle across
+   the whole control. At 96px that was a smudge nobody saw. At 46% x 40% of the
+   screen it is a grey box over the truck, and on a touchscreen the hover state
+   sticks after a tap rather than going away. */
+.truck-hotspot,
+.truck-hotspot:hover,
+.truck-hotspot:active {
   background: transparent;
+  border: 0;
 }
-.truck-hotspot::before {
-  content: ""; position: absolute; inset: -18%;
-  border-radius: 50%;
-  background: radial-gradient(circle,
-    rgba(255, 255, 255, 0.20) 0%,
-    rgba(255, 255, 255, 0.09) 42%,
-    transparent 68%);
-  animation: breathe-wave 6s ease-in-out infinite;
-}
-/* Once the menu is out, the wave has said what it had to say. */
-.truck-hotspot.open::before { animation: none; opacity: 0; transition: opacity var(--speed) var(--ease); }
-
-@keyframes breathe-wave {
-  0%, 100% { transform: scale(0.82); opacity: 0.45; }
-  50%      { transform: scale(1.12); opacity: 0.9; }
-}
+/* A target this big would otherwise sit over the backdrop and swallow the tap
+   that closes the menu. */
+.truck-hotspot.open { pointer-events: none; }
 
 /*
  * The tap ripple. Two rings on a stagger, each squashed vertically as it grows
@@ -264,18 +339,6 @@
   from { transform: scale(0.5) scaleY(0.94); opacity: 0.75; }
   to   { transform: scale(3.1) scaleY(0.82); opacity: 0; }
 }
-
-.scene-hint {
-  position: absolute; left: 50%; top: calc(65% + 52px); z-index: 3;
-  transform: translateX(-50%);
-  margin: 0;
-  font-size: var(--text-xs); letter-spacing: 0.18em; text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
-  transition: opacity var(--speed) var(--ease);
-  pointer-events: none;
-}
-.scene-hint.hidden { opacity: 0; }
 
 /* ── Radial menu ────────────────────────────────────────────── */
 /* A zero-size anchor; items are placed around it by --dx / --dy from script. */
@@ -550,6 +613,108 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
   transition: opacity var(--speed) var(--ease);
 }
 
+/* ── The boot splash ────────────────────────────────────────── */
+/*
+ * Ribbons sweep in from the right, orbit, and wrap into the vehicle's emblem.
+ *
+ * Deliberately dark in BOTH themes rather than given a light day variant: this
+ * is a badge reveal, and white ribbons on a pale ground do not read at all. It
+ * holds a few seconds and hands over to the launcher, which is where day mode
+ * belongs. Day only lifts the ground enough to stop it looking like a dead
+ * panel in direct sun.
+ */
+.splash {
+  position: fixed; inset: 0; z-index: 55;
+  display: grid; place-items: center;
+  overflow: hidden; cursor: pointer;
+  /* Navy rather than near-black: measured off the source frames, where the
+     ground is clearly blue and the weave reads against it. */
+  background: radial-gradient(120% 100% at 50% 45%, #0d1140 0%, #05071c 72%);
+  --ribbon-1: #ffffff;
+  --ribbon-2: var(--accent);
+}
+:root[data-theme="day"] .splash {
+  background: radial-gradient(120% 100% at 50% 45%, #161c5a 0%, #0a0d2a 72%);
+}
+.splash.gone { opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease); }
+
+.splash-hatch {
+  position: absolute; inset: -10%; opacity: 0;
+  background:
+    repeating-linear-gradient(7deg,  rgba(150, 175, 255, 0.10) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(-7deg, rgba(150, 175, 255, 0.07) 0 1px, transparent 1px 9px);
+}
+.splash.run .splash-hatch { animation: sp-ground 450ms ease-out both; }
+@keyframes sp-ground { from { opacity: 0; } to { opacity: 1; } }
+
+/* Two arcs of one ellipse. The dash gap is most of the circumference, so what
+   draws is a ribbon travelling round rather than a closed outline. */
+.splash-ribbons { position: absolute; width: min(44%, 560px); height: auto; overflow: visible; }
+.ribbon { fill: none; stroke-linecap: round; opacity: 0; }
+.ribbon-a { stroke: var(--ribbon-1); stroke-width: 6;  stroke-dasharray: 470 1330; }
+.ribbon-b { stroke: var(--ribbon-2); stroke-width: 17; stroke-dasharray: 380 1330;
+            filter: drop-shadow(0 0 16px var(--bloom)); }
+
+.splash.run .splash-ribbons { animation: sp-orbit  2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 200ms both; }
+.splash.run .ribbon-a       { animation: sp-ribbon 2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 200ms both; }
+.splash.run .ribbon-b       { animation: sp-ribbon 2400ms cubic-bezier(0.22, 0.7, 0.2, 1) 340ms both; }
+
+/* One animation per element covering its whole life. Two animations touching
+   the same property would fight over it through their fill modes. */
+/* One continuous travel rather than staged stops. Staging the offset left a
+   dead beat around the one-second mark, exactly where the source is at its most
+   dramatic — the dash had wandered off the visible path between keyframes. */
+@keyframes sp-ribbon {
+  0%   { stroke-dashoffset: 1330; opacity: 0; }
+  10%  { opacity: 1; }
+  84%  { opacity: 1; }
+  100% { stroke-dashoffset: -430; opacity: 0; }
+}
+@keyframes sp-orbit {
+  0%   { transform: rotate(-38deg) scale(1.38); }
+  55%  { transform: rotate(7deg) scale(1.07); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+.splash-emblem {
+  position: relative; width: min(32%, 410px);
+  clip-path: ellipse(4% 8% at 50% 50%);
+}
+.splash-emblem img { display: block; width: 100%; height: auto; opacity: 0; }
+.splash.run .splash-emblem     { animation: sp-clip   850ms cubic-bezier(0.2, 0.8, 0.25, 1) 1250ms both; }
+.splash.run .splash-emblem img { animation: sp-emblem 950ms cubic-bezier(0.2, 0.8, 0.25, 1) 1250ms both; }
+
+@keyframes sp-clip {
+  from { clip-path: ellipse(4% 8% at 50% 50%); }
+  to   { clip-path: ellipse(100% 100% at 50% 50%); }
+}
+@keyframes sp-emblem {
+  0%   { opacity: 0; transform: scale(1.14); filter: blur(11px); }
+  40%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+/* The one thing that sells a flat PNG as metal.
+ *
+ * Masked with the emblem itself, so the highlight travels across the badge and
+ * nowhere else. Without the mask the gradient bar is clipped to the element's
+ * BOX instead, and reads as a grey rectangle sliding over the artwork — which
+ * is exactly what it looked like before this line existed. */
+.splash-shine {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0;
+  -webkit-mask: url("/assets/emblem.png") center / 100% 100% no-repeat;
+  mask: url("/assets/emblem.png") center / 100% 100% no-repeat;
+}
+.splash-shine::before {
+  content: ""; position: absolute; top: -40%; bottom: -40%; left: -45%; width: 22%;
+  transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+}
+.splash.run .splash-shine         { animation: sp-shine-on 750ms ease-out 1850ms both; }
+.splash.run .splash-shine::before { animation: sp-shine    750ms cubic-bezier(0.3, 0, 0.2, 1) 1850ms both; }
+@keyframes sp-shine-on { 0%, 100% { opacity: 0; } 20%, 72% { opacity: 1; } }
+@keyframes sp-shine    { from { left: -40%; } to { left: 118%; } }
+
 /* ── Toasts ─────────────────────────────────────────────────── */
 .toasts {
   position: fixed; left: 50%; bottom: var(--gap-5); transform: translateX(-50%);
@@ -574,12 +739,25 @@ button.ghost:hover { color: var(--accent); border-color: var(--accent); backgrou
 /* Ambience is decoration; it is the first thing to go. The interface keeps its
    full layout and colour, it simply stops moving. */
 @media (prefers-reduced-motion: reduce) {
-  .orb, .toast, .card, .scene-bg,
-  .truck-hotspot::before, .ripple::before, .ripple::after { animation: none !important; }
+  .orb, .toast, .card, .scene-plate,
+  .chase, .ripple::before, .ripple::after { animation: none !important; }
+  /* The haze stays — it is the only thing marking the tap target now that the
+     label is gone. The light is hidden rather than parked, because a bright
+     segment stopped dead at one arbitrary point on the outline looks like a
+     fault rather than a design. */
+  .haze { opacity: 0.09; }
+  .chase { opacity: 0; }
   /* With the ripple stilled it would otherwise sit on screen forever. */
   .ripple { display: none; }
   .spinner { animation-duration: 2.4s; }
   .switch > span, .dimmer { transition: none; }
+  /* The splash resolves straight to its final frame: emblem present, ribbons
+     gone. Left to itself it would sit on frame one forever. */
+  .splash *, .splash.run * { animation: none !important; }
+  .splash-emblem { clip-path: none; }
+  .splash-emblem img { opacity: 1; filter: none; transform: none; }
+  .splash-hatch { opacity: 1; }
+  .ribbon { opacity: 0; }
 }
 
 /* Below this the settings cards stop fitting side by side. The launcher needs

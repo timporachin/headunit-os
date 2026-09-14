@@ -47,6 +47,60 @@ rather than `127.0.0.1`: some apps restrict who may frame them and are told to
 trust both spellings, but the theme and the saved settings are stored per
 origin, so switching between the two looks like losing your preferences.
 
+## The home screen
+
+The truck glows. Its outline is traced from `shell/assets/truck.jpg` itself and
+lives in `shell/index.html` as `#truckOutline`, in that photograph's own pixel
+coordinates — which is why the SVG shares the image's `viewBox` and sits beside
+it inside `.scene-plate`, so the slow drift moves both as one object.
+
+**Swapping the photograph invalidates the outline.** The glow would trace a
+vehicle that is no longer there, and the path has to be re-traced against the
+new image. That is the one maintenance cost of this effect.
+
+Tapping anywhere on the truck opens the apps.
+
+## The boot animation
+
+Ribbons sweep in and wrap into your vehicle's emblem, then the launcher. It
+plays for about six and a half seconds and **a tap anywhere skips it**.
+
+It needs one file you supply: **`shell/assets/emblem.png`** — a transparent PNG,
+600px or wider on the long edge. Without it the splash simply does not run and
+the head unit boots straight to the launcher; Settings says so under the Boot
+animation switch.
+
+Turn it off in Settings &rarr; Display. For development, `?nosplash` on the URL
+skips it without changing the setting:
+
+```
+http://localhost:4100?nosplash
+```
+
+### If the emblem arrives with a background
+
+Copying an image that has transparency and saving it from a preview usually
+bakes the grey-and-white checkerboard into the pixels. It looks right as a
+thumbnail and composites as a grey rectangle behind the badge. Windows will
+also quietly name the file `emblem.png.png` if extensions are hidden.
+
+Best fix is to download the actual file — right-click the image itself and
+*Save image as…* — rather than saving a preview of it. Failing that:
+
+```
+node tools/cutout.mjs shell/assets/emblem.png
+```
+
+It reads the background off the border of the image and removes only the part
+connected to the edge, so white lettering inside the badge is never touched,
+then feathers and un-blends the antialiased rim. Your original is kept beside
+it as `emblem.original.png`, and running it twice does nothing.
+
+Two knobs if the first pass is not right. `--tolerance` (default 8) is how
+close a colour must be to count as background: raise it if a pale fringe
+survives, lower it if the cut bites into the artwork. `--feather` (default 1)
+is how wide the blended edge is.
+
 ## When something sticks
 
 **The globe loads part-way and stalls, or a black console window appears.**

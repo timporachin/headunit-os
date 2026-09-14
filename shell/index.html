@@ -58,19 +58,51 @@
     <section class="launcher" id="launcher">
       <!--
         The home screen is a photograph of the vehicle with the apps hidden in
-        it: a hotspot on the truck pulses, and tapping it blooms the installed
-        apps outward from that point. The menu is built from the registry, so
-        the arc is whatever is installed rather than a fixed set.
+        it: the truck itself glows, and tapping it blooms the installed apps
+        outward. The menu is built from the registry, so the arc is whatever is
+        installed rather than a fixed set.
+
+        The glow carries the whole affordance — there is no label. #truckOutline
+        below is the vehicle's exact silhouette, read from the alpha channel of
+        a cut-out of THIS photograph and kept in its own pixel coordinates. The
+        SVG therefore shares the image's viewBox, and its "slice" fitting is the
+        SVG spelling of object-fit: cover. Both live inside .scene-plate so the
+        drift animation moves them as one object; on separate layers the glow
+        slides off the truck within seconds.
+
+        113 points, within 0.39px of the alpha edge on average. pathLength="1000"
+        makes the dash animation work in thousandths of the perimeter, so this
+        path can be replaced without retiming anything — swapping it changed the
+        real geometry from 1742 to 2012 units and the animation did not move.
+
+        assets/truck-mask.png is where it came from: the cut-out's alpha as a
+        1-bit image, 2KB, kept so the path can be regenerated rather than
+        re-traced. The shell never loads it.
+
+        Replacing assets/truck.jpg invalidates it — the silhouette would have to
+        be re-cut against the new photograph.
       -->
       <div class="scene">
-        <img class="scene-bg" src="/assets/truck.jpg" alt="" draggable="false">
+        <div class="scene-plate">
+          <img class="scene-bg" src="/assets/truck.jpg" alt="" draggable="false">
+          <svg class="scene-aura" viewBox="0 0 1537 1023"
+               preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+            <defs>
+              <path id="truckOutline" pathLength="1000" d="M1068 628L1064 622L942 615L940 610L947 604L964 603L968 596L967 592L962 588L947 588L943 580L935 580L933 578L924 530L916 520L911 518L854 513L847 506L842 506L834 512L802 511L794 505L787 505L782 511L755 511L752 506L741 506L731 512L716 512L715 509L713 511L709 508L701 508L689 515L673 516L667 512L657 514L653 520L645 522L633 530L584 600L517 608L508 612L465 620L450 644L449 652L452 702L457 707L441 714L439 719L440 733L445 737L447 749L454 757L469 761L468 793L472 813L481 831L489 839L499 843L527 844L549 839L559 830L570 807L571 798L575 794L652 791L668 793L688 803L697 803L712 796L727 797L737 801L742 807L742 814L746 822L746 851L816 851L829 840L837 825L843 797L843 771L847 767L863 766L875 776L897 781L906 778L912 771L926 763L940 763L946 773L951 772L951 767L954 764L960 764L967 767L971 772L977 802L985 813L994 815L1023 813L1032 794L1035 779L1034 735L1042 731L1072 731L1074 729L1075 711L1069 708L1072 699L1070 677L1073 671L1073 651Z"/>
+            </defs>
+            <use class="haze haze-wide"   href="#truckOutline"/>
+            <use class="haze haze-mid"    href="#truckOutline"/>
+            <use class="haze haze-near"   href="#truckOutline"/>
+            <use class="chase chase-tail" href="#truckOutline"/>
+            <use class="chase chase-glow" href="#truckOutline"/>
+            <use class="chase chase-core" href="#truckOutline"/>
+          </svg>
+        </div>
         <div class="scene-backdrop" id="sceneBackdrop"></div>
 
         <button class="truck-hotspot" id="truckHotspot"
                 aria-label="Open apps" aria-expanded="false" aria-controls="radialMenu"></button>
         <div class="radial-menu" id="radialMenu" role="menu" aria-label="Installed apps"></div>
-
-        <p class="scene-hint" id="sceneHint">Tap the truck</p>
 
         <p class="launcher-empty" id="launcherEmpty" hidden>
           No apps installed yet. Add one at <code>apps/&lt;id&gt;/app.json</code>.
@@ -135,6 +167,16 @@
               <p class="hint">Dims the whole screen, apps included. It stops at 25% so the
                 head unit can never be turned all the way black.</p>
             </div>
+            <div class="field toggle-row">
+              <div class="toggle-text">
+                <label for="splashOn">Boot animation</label>
+                <p class="hint">The emblem sequence when the head unit starts. Tap it to skip.</p>
+              </div>
+              <button type="button" id="splashOn" class="switch" role="switch" aria-checked="false">
+                <span aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="hint" id="splashHint"></p>
           </section>
 
           <section class="card">
@@ -206,6 +248,28 @@
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!--
+    The boot splash. Ribbons sweep in and wrap into the vehicle's emblem, which
+    is a real image at assets/emblem.png rather than anything drawn here. If
+    that file is absent the splash never runs and the shell boots straight to
+    the launcher.
+
+    Sits above the chrome but BELOW the dimmer, so a head unit set to 40%
+    brightness boots at 40% instead of flashing full bright at five in the
+    morning.
+  -->
+  <div id="splash" class="splash" hidden aria-hidden="true">
+    <div class="splash-hatch"></div>
+    <svg class="splash-ribbons" viewBox="0 0 600 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <ellipse class="ribbon ribbon-b" cx="300" cy="120" rx="290" ry="112"/>
+      <ellipse class="ribbon ribbon-a" cx="300" cy="120" rx="290" ry="112"/>
+    </svg>
+    <div class="splash-emblem">
+      <img id="splashEmblem" src="/assets/emblem.png" alt="">
+      <span class="splash-shine" aria-hidden="true"></span>
+    </div>
+  </div>
 
   <!-- The night dimmer. Above every layer including an app's iframe, and never
        interactive, so it darkens the screen without eating a single tap. -->
