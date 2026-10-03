@@ -100,50 +100,6 @@ Two knobs if the first pass is not right. `--tolerance` (default 8) is how
 close a colour must be to count as background: raise it if a pale fringe
 survives, lower it if the cut bites into the artwork. `--feather` (default 1)
 is how wide the blended edge is.
-## Poker
-
-Texas Hold'em against four opponents, all of it running in the page. No
-network, no account, nothing to sign into — it works in a driveway with no
-signal, and nobody else's site can break it.
-
-Open Face Chinese is next; the menu shows it greyed out. The hand evaluator it
-needs is already written and tested.
-
-### Checking the rules for yourself
-
-The parts that must be right are testable from the command line, without
-starting the head unit:
-
-```
-node apps/poker/web/engine/evaluate.test.mjs
-node apps/poker/web/engine/holdem.test.mjs
-node apps/poker/web/engine/ai-holdem.test.mjs
-```
-
-The first one ranks **every five-card hand there is** — all 2,598,960 — and
-checks the totals against the distribution the maths says they must have: 40
-straight flushes, 624 four-of-a-kinds, 3,744 full houses, and so on down. One
-hand ranked wrongly moves a count and the test fails. It takes about a second.
-
-The second plays four thousand random hands and proves the chips that come out
-equal the chips that went in, then checks side pots by hand — a short stack all
-in against two deeper ones, and dead money from somebody who folded after
-betting.
-
-The third checks the bots' arithmetic against published poker figures: pocket
-aces win 85.2% against a random hand heads-up, seven-deuce offsuit 34.6%. The
-rollout lands within a point of each. If it ever stops doing that, the bots are
-broken no matter how they feel to play against.
-
-### The opponents
-
-Five personalities, four at the table: a rock who folds too much, a maniac who
-raises too much, and three in between. Each works out its equity by dealing the
-rest of the hand out a few hundred times and counting how often it wins, then
-weighs that against the pot odds. The differences between them are appetite for
-aggression and a willingness to bluff, which is what stops the table playing
-like one player copied four times.
-
 ## When something sticks
 
 **The globe loads part-way and stalls, or a black console window appears.**
